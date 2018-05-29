@@ -1,0 +1,13 @@
+[Trimmomatic]
+bin = /Users/annasintsova/tools/Trimmomatic-0.36/trimmomatic-0.36.jar
+adapters = /Users/annasintsova/tools/Trimmomatic-0.36/adapters/TruSeq3-SE.fa
+
+[FastQC]
+bin = /Users/annasintsova/tools/FastQC/fastqc
+
+
+[Bowtie]
+bin =
+
+[Samtools]
+bin = /home/annasint/bin/samtools-1.5/bin/samtools
