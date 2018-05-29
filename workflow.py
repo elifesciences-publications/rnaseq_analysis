@@ -102,11 +102,10 @@ def run_trim_job(fastq_file_input, output_directory, today,
     trimmomatic_bin = config_dict["Trimmomatic"]["bin"]
     trimmomatic_adapters = config_dict["Trimmomatic"]["adapters"]
 
-    suffix = os.path.basename(fastq_file_input).split(".fastq")[0]
+    suffix = to_str(os.path.basename(fastq_file_input).split(".fastq")[0])
 
     fastq_file_output = os.path.join(output_directory, suffix+"_trimmed.fastq")
-
-    script = process_fastq.Trimmomatic(fastq_file_input,
+    script = process_fastq.trimmomatic(fastq_file_input,
                                        fastq_file_output,
                                        trimmomatic_bin,
                                        trimmomatic_adapters)
@@ -115,40 +114,43 @@ def run_trim_job(fastq_file_input, output_directory, today,
         return fastq_file_output, ''
     else:
         jobid = submit_flux_job(output_directory, suffix,
-                       today, "Trimmomatic", script, job_dependency)
+                                today, "Trimmomatic", script, job_dependency)
         return fastq_file_output, jobid
 # todo test run_trim_job
 
 
-def run_fasqc_job(fastq_file, output_directory, today,
-                  config_dict, local=False,job_dependency=''):
+def run_fastqc_job(fastq_file, output_directory, today,
+                   config_dict, local=False, job_dependency=''):
 
     fastqc_bin = config_dict["FastQC"]["bin"]
     fastqc_output_dir = os.path.join(output_directory, "FastQC_results")
     subprocess.call(["mkdir", "-p", fastqc_output_dir])
     script = process_fastq.fastqc(fastq_file, fastqc_output_dir,
                                   fastqc_bin)
+
     suffix = os.path.basename(fastq_file).split(".")[0]
     if local:
         submit_local_job(script)
+        return fastqc_output_dir, ''
     else:
         jobid = submit_flux_job(output_directory, suffix,
-                       today, "FastQC", script, job_dependency)
+                                today, "FastQC", script, job_dependency)
+        return fastqc_output_dir, jobid
 
-    return fastqc_output_dir, jobid
+# todo test run_fastqc_job
 
 
-def workflow1(files, output_directory, config_dict, today):
+def workflow1(files, output_directory, config_dict, today):  # todo add local/flux argument
 
     for file in files:
-        suffix = os.path.basename(file).split(".")[0]+ "_output"
+        suffix = to_str(os.path.basename(file).split(".")[0]) + "_output"
         out_dir = os.path.join(output_directory, suffix)
         subprocess.call(["mkdir", "-p", out_dir])
         # 2. run trim job
         trimmed_fastq_file, trim_jobid = run_trim_job(file, out_dir, today,
                                     config_dict, )
 
-        fastqc_output_dir, fastqc_jobid = run_fasqc_job(trimmed_fastq_file,
+        fastqc_output_dir, fastqc_jobid = run_fastqc_job(trimmed_fastq_file,
                                                         out_dir, today,
                                                         config_dict, job_dependency=trim_jobid)
     return "Jobs for workflow1 submitted"
@@ -269,11 +271,9 @@ and count reads, combine reads into single files, calculate RPKMs
 
 """
 
-
-
-
-
 #####################################################################################################
+
+
 def flow_control():
 
     today = set_up_file_handles()
@@ -293,7 +293,6 @@ def flow_control():
 
     elif args.analysis == 'workflow1':
         print(workflow1(files, output_directory, config_dict, today))
-
 
 
 if __name__ == "__main__":

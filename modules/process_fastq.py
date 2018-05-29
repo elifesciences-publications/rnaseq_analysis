@@ -1,11 +1,9 @@
 import datetime as dt
 import os
 
+# FASTQC, TRIMMOMATIC
 
-
-### FASTQC, TRIMMOMATIC
-
-### All of these need to be adjusted to accomodate PE situation
+# All of these need to be adjusted to accomodate PE situation
 
 
 def fastqc(fastq_input_file,  out_dir, fastqc_bin):
@@ -31,7 +29,7 @@ def mulitqc(input_directory, output_directory=''):
     return "multiqc {} --force --filename {}\n".format(input_directory, report_name)
 
 
-def Trimmomatic(fastq_file_input, fastq_file_output,
+def trimmomatic(fastq_file_input, fastq_file_output,
                 trimmomatic_bin, trimmomatic_adapters):
 
         return "java -jar {} " \
