@@ -116,7 +116,6 @@ def run_trim_job(fastq_file_input, output_directory, today,
         jobid = submit_flux_job(output_directory, suffix,
                                 today, "Trimmomatic", script, job_dependency)
         return fastq_file_output, jobid
-# todo test run_trim_job
 
 
 def run_fastqc_job(fastq_file, output_directory, today,
@@ -137,23 +136,25 @@ def run_fastqc_job(fastq_file, output_directory, today,
                                 today, "FastQC", script, job_dependency)
         return fastqc_output_dir, jobid
 
-# todo test run_fastqc_job
 
-
-def workflow1(files, output_directory, config_dict, today):  # todo add local/flux argument
+def workflow1(files, output_directory, config_dict, today, local=False):
 
     for file in files:
         suffix = to_str(os.path.basename(file).split(".")[0]) + "_output"
         out_dir = os.path.join(output_directory, suffix)
         subprocess.call(["mkdir", "-p", out_dir])
+
         # 2. run trim job
         trimmed_fastq_file, trim_jobid = run_trim_job(file, out_dir, today,
-                                    config_dict, )
+                                                      config_dict, local)
 
         fastqc_output_dir, fastqc_jobid = run_fastqc_job(trimmed_fastq_file,
-                                                        out_dir, today,
-                                                        config_dict, job_dependency=trim_jobid)
-    return "Jobs for workflow1 submitted"
+                                                         out_dir, today,
+                                                         config_dict, local, job_dependency=trim_jobid)
+    return "Jobs for workflow1 submitted" # todo test workflow1
+
+
+
 ####################################################################################################
 
 
