@@ -38,3 +38,4 @@ def trimmomatic(fastq_file_input, fastq_file_output,
                                                                       fastq_file_input,
                                                                       fastq_file_output,
                                                                       trimmomatic_adapters)
+# todo add more configurable params, 
