@@ -63,38 +63,38 @@ def test_submit_flux_job_two_jobs():
                                        job_name, script2, job_dependency=output1)
     assert type(int(output2)) == int
 
+
 # Both of these will test local system
-def test_run_trim_job():
 
-    fastq_file_input = "/Users/annasintsova/git_repos/code/data/reads/UTI24_treatment.fastq"
-    output_directory = "/Users/annasintsova/git_repos/code/tests/test_data"
-    today = dt.datetime.today().strftime("%Y-%m-%d")
-    config_dict = workflow.process_config(config_file="local_config")
-    local = True
-    output_file_name = workflow.run_trim_job(fastq_file_input, output_directory,
-                                             today, config_dict, local)[0]
+def test_run_trim_job(local_fastq_hm86_ur_tmpdir_out):
+
+    # GIVEN:
+    filename, outdir, td, config_dict, loc = local_fastq_hm86_ur_tmpdir_out
+    # WHEN:
+    output_file_name = workflow.run_trim_job(filename, outdir, td, config_dict, loc)[0]
+    # THEN:
     assert os.path.isfile(output_file_name)
-# todo passes but Trimmomatic is dropping all the reads, have to figure out why
-def test_run_fastqc_job():
+    assert os.path.getsize(output_file_name) != 0
 
-    fastq_file_input = "/Users/annasintsova/git_repos/code/data/reads/UTI24_treatment.fastq"
-    output_directory = "/Users/annasintsova/git_repos/code/tests/test_data"
-    today = dt.datetime.today().strftime("%Y-%m-%d")
-    config_dict = workflow.process_config(config_file="local_config")
-    local = True
-    actual_out_dir = workflow.run_fastqc_job(fastq_file_input, output_directory, today,
-                   config_dict, local)[0]
-    assert os.path.join(output_directory, "FastQC_results") == actual_out_dir
+
+def test_run_fastqc_job(local_fastq_hm86_ur_tmpdir_out):
+    # GIVEN:
+    filename, outdir, td, config_dict, loc = local_fastq_hm86_ur_tmpdir_out
+    # WHEN:
+    actual_out_dir = workflow.run_fastqc_job(filename, outdir, td, config_dict, loc)[0]
+    # THEN:
+    expected_filename = os.path.join(actual_out_dir,
+                                     to_str(os.path.basename(filename).split(".fastq")[0]) + "_fastqc.html")
+    assert os.path.join(outdir, "FastQC_results") == actual_out_dir
     assert len(os.listdir(actual_out_dir)) != 0
-    assert os.path.isfile("/Users/annasintsova/git_repos/code/tests/"
-                          "test_data/FastQC_results/UTI24_treatment_fastqc.html")
+    assert os.path.isfile(expected_filename)
 
 # todo make tests clean up after themselves
 
 # this will test both on flux, plus if job dependency works properly
 @pytest.mark.skip(reason="only on FLUX")
 def test_run_fastqc_after_run_trim_job():
-    fastq_file_input = "/scratch/hmobley_fluxod/annasint/code/data/reads/UTI24_treatment.fastq"
+    fastq_file_input = "/scratch/hmobley_fluxod/annasint/code/data/reads/HM86_UR_copy.fastq.gz"
     output_directory = "/scratch/hmobley_fluxod/annasint/code/tests/test_data"
     today = dt.datetime.today().strftime("%Y-%m-%d")
     config_dict = workflow.process_config(config_file="config")
@@ -106,9 +106,6 @@ def test_run_fastqc_after_run_trim_job():
                                              config_dict, local, job_dependency=jobid)
     assert type(int(jobid2)) == int  # todo come up with a better assert statement
     # todo run this on one of my files to make sure all is ok
-
-# Test is passing but something is wrong with Trimmomatic run, it's dropping all the reads
-
 
 if __name__ == "__main__":
     print("Hello!")
