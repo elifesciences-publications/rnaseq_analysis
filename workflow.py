@@ -62,6 +62,9 @@ def get_args():
     parser.add_argument('-ref', '--reference_genome', help="Reference genome for alignments", required=False)
     parser.add_argument('--no_index', help="Don't build bowtie2 index again", action="store_true",
                         required=False)  # explore metavar
+    parser.add_argument("-local", "--local", help='Run locally or on flux', action='store_true',
+                        required=False)
+
     return parser
 
 #######################################################################################################
@@ -293,7 +296,7 @@ def flow_control():
         print(workflow_test(args.analysis, args.input, args.out_dir))
 
     elif args.analysis == 'workflow1':
-        print(workflow1(files, output_directory, config_dict, today))
+        print(workflow1(files, output_directory, config_dict, today, args.local))
 
 
 if __name__ == "__main__":
