@@ -50,7 +50,7 @@ def submit_flux_job(output_directory, suffix, today, job_name, script, job_depen
 def submit_local_job(script):
 
     cmd = shlex.split(script)
-    subprocess.call(cmd)
+    subprocess.call(cmd)  # blocks until finished
 
 
 def get_args():
@@ -113,6 +113,7 @@ def run_trim_job(fastq_file_input, output_directory, today,
                                        trimmomatic_bin,
                                        trimmomatic_adapters)
     if local:
+        print(script)
         submit_local_job(script)
         return fastq_file_output, ''
     else:
@@ -143,6 +144,7 @@ def run_fastqc_job(fastq_file, output_directory, today,
 def workflow1(files, output_directory, config_dict, today, local=False):
 
     for file in files:
+
         suffix = to_str(os.path.basename(file).split(".")[0]) + "_output"
         out_dir = os.path.join(output_directory, suffix)
         subprocess.call(["mkdir", "-p", out_dir])
@@ -153,8 +155,9 @@ def workflow1(files, output_directory, config_dict, today, local=False):
 
         fastqc_output_dir, fastqc_jobid = run_fastqc_job(trimmed_fastq_file,
                                                          out_dir, today,
-                                                         config_dict, local, job_dependency=trim_jobid)
-    return "Jobs for workflow1 submitted" # todo test workflow1
+                                                         config_dict, local,
+                                                         job_dependency=trim_jobid)
+    return "Jobs for workflow1 submitted" # todo test workflow1 on flux
 
 
 
@@ -290,8 +293,11 @@ def flow_control():
         raise IOError
     output_directory = os.path.abspath(args.out_dir)
     subprocess.call(["mkdir", "-p", output_directory])
+    if args.local:
+        config_dict = process_config("local_config")
+    else:
+        config_dict = process_config("config")
 
-    config_dict = process_config("config")
     if args.analysis == 'test':
         print(workflow_test(args.analysis, args.input, args.out_dir))
 

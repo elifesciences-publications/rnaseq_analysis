@@ -1,4 +1,5 @@
 import datetime as dt
+import os
 import pytest
 import sys
 sys.path.append('.')
@@ -17,3 +18,8 @@ def local_fastq_hm86_ur_tmpdir_out(tmpdir, day):
     today = day
     yield (fastq_file, str(tmpdir), today, config_dict, local)
 
+# @pytest.fixture()
+# def remove_test_data():
+#     yield
+#     os.remove()
+# todo finish fixture that would remove all data from test_data directory in the end
