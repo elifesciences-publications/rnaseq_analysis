@@ -19,7 +19,7 @@ def fastqc(fastq_input_file,  out_dir, fastqc_bin):
         return "{} -o {} {}\n".format(fastqc_bin, out_dir, fastq_input_file)
 
 
-def mulitqc(input_directory, output_directory=''):
+def multiqc(input_directory, output_directory=''):
 
     if not output_directory:
         output_directory = input_directory
@@ -34,7 +34,7 @@ def trimmomatic(fastq_file_input, fastq_file_output,
 
         return "java -jar {} " \
                   "SE {} {} ILLUMINACLIP:{}:2:30:10:8:true" \
-                  " SLIDINGWINDOW:4:15 MINLEN:40 HEADCROP:0\n".format(trimmomatic_bin,
+                  " SLIDINGWINDOW:4:15 MINLEN:20 HEADCROP:0\n".format(trimmomatic_bin,
                                                                       fastq_file_input,
                                                                       fastq_file_output,
                                                                       trimmomatic_adapters)

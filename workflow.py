@@ -176,33 +176,42 @@ if both are directories have to have a function that matches jobs/files
 
 # NEED TO ADD local option to these
 
-def run_build_index_job(reference_genome, output_directory,
-                        today, bowtie_bin, job_dependency = ''):# What is output directory?
 
-    suffix = os.path.basename(reference_genome).split(".")[0]
-    bt2_base = suffix +'_index'
+def run_build_index_job(reference_genome, output_directory,
+                        today, config_dict,
+                        local=False, job_dependency=''):
+    bowtie_bin = config_dict["Bowtie"]["bin"]
+    suffix = to_str(os.path.basename(reference_genome).split(".")[0])
+    bt2_base = suffix + '_index'
     script = align.build_bowtie_index(reference_genome, bt2_base,
                                       output_directory,
                                       bowtie_bin)
-    jobid = submit_flux_job(output_directory, suffix,
-                       today, "Bowtie_index", script, job_dependency)
-    return bt2_base, jobid
+    if local:
+        submit_local_job(script)
+        return bt2_base, ''
+    else:
+        jobid = submit_flux_job(output_directory, suffix,
+                                today, "Bowtie_index", script, job_dependency)
+        return bt2_base, jobid
 
 
 def run_alignment_job(fastq_file, output_directory,
-                      bt2_base, bowtie_bin, today,
-                      sam_file_name='', job_dependency=''):
-
+                      bt2_base, config_dict, today,
+                      local=False,
+                      job_dependency=''):
+    bowtie_bin = config_dict["Bowtie"]["bin"]
     suffix = os.path.basename(fastq_file).split(".")[0]
-    if not sam_file_name:
-        sam_file_name = os.path.join(output_directory, suffix, ".sam")
-    script = align.bowtie_align(fastq_file,output_directory,
+    sam_file_name = os.path.join(output_directory, suffix, ".sam")
+    script = align.bowtie_align(fastq_file, output_directory,
                                 sam_file_name,
                                 bt2_base,  bowtie_bin)
-    jobid = submit_flux_job(output_directory, suffix,
-                       today, "Bowtie_Align", script, job_dependency)
-    return sam_file_name, jobid
-
+    if local:
+        submit_local_job(script)
+        return sam_file_name, ''
+    else:
+        jobid = submit_flux_job(output_directory, suffix,
+                                today, "Bowtie_Align", script, job_dependency)
+        return sam_file_name, jobid
 
 
 def run_sam_to_bam_conversion_and_sorting(sam_file, output_directory, today,

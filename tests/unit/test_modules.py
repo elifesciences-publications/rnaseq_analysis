@@ -1,13 +1,13 @@
 import datetime as dt
 import os
-import pytest
+
 import subprocess
 import sys
 sys.path.append('.')
 import workflow
 from modules import process_fastq
 from modules import generate_PBS_script as pbs
-
+from modules import align
 from modules.helpers import to_str
 
 
@@ -67,3 +67,16 @@ def test_modules_fastqc():
                "/Users/annasintsova/git_repos/code/tests/test_data " \
                "/Users/annasintsova/git_repos/code/data/reads/UTI24_control.fastq\n"
     assert script == expected
+
+def test_modules_align_build_index():
+    reference = "data/ref/MG1655.fna"
+    bt2_base = "test_index"
+    output_directory = "tests/test_data"
+    bowtie_bin = ""
+
+    script = align.build_bowtie_index(reference, bt2_base, output_directory,
+                       bowtie_bin)
+
+    expected_script = "cd tests/test_data\n"\
+                      "bowtie2-build data/ref/MG1655.fna test_index\n"
+    assert script == expected_script

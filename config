@@ -7,7 +7,7 @@ bin = /home/annasint/bin/FastQC/fastqc
 
 
 [Bowtie]
-bin = /home/annasint/bin/bowtie2-2.3.4-linux-x86_64
+bin = /home/annasint/bin/bowtie2-2.3.4-linux-x86_64/
 
 [Samtools]
 bin = /home/annasint/bin/samtools-1.5/bin/samtools

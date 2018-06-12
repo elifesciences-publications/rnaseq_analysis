@@ -4,7 +4,7 @@ import os
 def build_bowtie_index(reference, bt2_base, output_directory,
                        bowtie_bin):
     script = "cd {}\n".format(output_directory)
-    script += "{}/bowtie2-build {} {}\n".format(bowtie_bin, reference, bt2_base)
+    script += "{}bowtie2-build {} {}\n".format(bowtie_bin, reference, bt2_base)
     return script
 
 

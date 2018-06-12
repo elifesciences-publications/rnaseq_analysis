@@ -107,5 +107,7 @@ def test_run_fastqc_after_run_trim_job():
     assert type(int(jobid2)) == int  # todo come up with a better assert statement
 
 
+
+
 if __name__ == "__main__":
     print("Hello!")
