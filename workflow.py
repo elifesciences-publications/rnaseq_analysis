@@ -49,8 +49,10 @@ def submit_flux_job(output_directory, suffix, today, job_name, script, job_depen
 
 def submit_local_job(script):
 
-    cmd = shlex.split(script)
-    subprocess.call(cmd)  # blocks until finished
+    multiple_scripts = script.strip().split("\n")
+    for scr in multiple_scripts:
+        cmd = shlex.split(scr)
+        subprocess.call(cmd)  # blocks until finished
 
 
 def get_args():
@@ -177,32 +179,37 @@ if both are directories have to have a function that matches jobs/files
 # NEED TO ADD local option to these
 
 
-def run_build_index_job(reference_genome, output_directory,
+def run_build_index_job(reference_genome,
                         today, config_dict,
                         local=False, job_dependency=''):
     bowtie_bin = config_dict["Bowtie"]["bin"]
-    suffix = to_str(os.path.basename(reference_genome).split(".")[0])
+    suffix = to_str(reference_genome.split(".f")[0])
     bt2_base = suffix + '_index'
-    script = align.build_bowtie_index(reference_genome, bt2_base,
-                                      output_directory,
+    script = align.build_bowtie_index(reference_genome,
+                                      bt2_base,
                                       bowtie_bin)
+    print(script)
     if local:
         submit_local_job(script)
         return bt2_base, ''
     else:
+        output_directory = os.path.dirname(reference_genome)
         jobid = submit_flux_job(output_directory, suffix,
                                 today, "Bowtie_index", script, job_dependency)
         return bt2_base, jobid
+     # todo test index job on flux
 
 
-def run_alignment_job(fastq_file, output_directory,
+def run_alignment_job(fastq_file,
+                      # output directory is fastqfile directory
                       bt2_base, config_dict, today,
                       local=False,
                       job_dependency=''):
+    output_directory = os.path.dirname(fastq_file)
     bowtie_bin = config_dict["Bowtie"]["bin"]
-    suffix = os.path.basename(fastq_file).split(".")[0]
-    sam_file_name = os.path.join(output_directory, suffix, ".sam")
-    script = align.bowtie_align(fastq_file, output_directory,
+    suffix = to_str(os.path.basename(fastq_file).split(".")[0])
+    sam_file_name = os.path.join(output_directory, suffix  + ".sam")
+    script = align.bowtie_align(fastq_file,
                                 sam_file_name,
                                 bt2_base,  bowtie_bin)
     if local:
@@ -212,23 +219,27 @@ def run_alignment_job(fastq_file, output_directory,
         jobid = submit_flux_job(output_directory, suffix,
                                 today, "Bowtie_Align", script, job_dependency)
         return sam_file_name, jobid
+    # todo test on flux
 
 
-def run_sam_to_bam_conversion_and_sorting(sam_file, output_directory, today,
-                                          samtools_bin, job_dependency=''):
-    suffix = os.path.basename(sam_file).split(".")[0]
-    bam_file = os.path.join(output_directory, suffix+".bam")
-    flagstat_file = os.path.join(output_directory, suffix+".flagstat.txt")
+def run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today,
+                                          local, job_dependency=''):
+    samtools_bin = config_dict["Samtools"]["bin"]
+    output_directory = os.path.dirname(sam_file)
+    suffix = sam_file.split(".")[0]
+    bam_file = suffix+".bam"
+    flagstat_file = suffix+"_flagstat.txt"
 
     script = samtools.sam2bam(sam_file, bam_file,
-                               flagstat_file, output_directory,
+                              flagstat_file,
                               samtools_bin)
-    jobid = submit_flux_job(output_directory, suffix,
-                       today, "Sam2Bam", script, job_dependency)
-
-    return bam_file, jobid
-
-
+    if local:
+        submit_local_job(script) # todo make flagstat work for local run
+        return bam_file, ''
+    else:
+        jobid = submit_flux_job(output_directory, suffix, # todo make sure suffix/output_directory still work
+                                today, "Bowtie_Align", script, job_dependency)
+        return bam_file, jobid
 
 
 def run_alignments_for_multiple_genomes(genome_read_pairs, today, config_dict): #list of tuples
@@ -246,28 +257,46 @@ def run_alignments_for_multiple_genomes(genome_read_pairs, today, config_dict): 
                           bt2_base, bowtie_bin, today,
                           job_dependency=index_jobid)
         #run sam job
-        bam_file, samtools_jobid = run_sam_to_bam_conversion_and_sorting(sam_file,
-                                                                         output_directory,
-                                                                         today,
-                                                                         samtools_bin,
-                                                                         job_dependency=align_jobid)
+        # bam_file, samtools_jobid = run_sam_to_bam_conversion_and_sorting(sam_file,
+        #                                                                  output_directory,
+        #                                                                  today,
+        #                                                                  samtools_bin,
+        #                                                                  job_dependency=align_jobid)
+
+def find_fastq_files_in_a_tree(folder, file_type): # todo refactor function name
+
+    fastq_files = []
+    for root, dirs, files in os.walk(folder, topdown=False):
+        for name in files:
+            if file_type in name:
+                fastq_files.append(os.path.join(root, name))
+    return fastq_files
 
 
-def run_alignments_for_single_genome(genome, read_files, output_directory):
-    bt2_base, index_jobid = run_build_index_job(genome, output_directory,
-                                                today, bowtie_bin)
+def run_alignments_for_single_genome(genome, fastq_folder, config_dict, today, local):
+    # todo Check if there's an index
+
+    # Build index
+    bt2_base, index_jobid = run_build_index_job(genome, today,
+                                                config_dict,
+                                                local)
+    # Get fastq files
+    fastq_files = find_fastq_files_in_a_tree(fastq_folder, "fastq")
+
     # run alignment job
-    sam_file, align_jobid = run_alignment_job(fastq_file, output_directory,
-                                              bt2_base, bowtie_bin, today,
-                                              job_dependency=index_jobid)
+    for fastq_file in fastq_files:
+
+        sam_file, align_jobid = run_alignment_job(fastq_file,
+                                                  bt2_base, config_dict,
+                                                  today, local,
+                                                  job_dependency=index_jobid)
     # run sam job
-    bam_file, samtools_jobid = run_sam_to_bam_conversion_and_sorting(sam_file,
-                                                                     output_directory,
-                                                                     today,
-                                                                     samtools_bin,
-                                                                     job_dependency=align_jobid)
-    # run build index
-    # for each read file run alignment job, sam job
+        bam_file, samtools_jobid = run_sam_to_bam_conversion_and_sorting(sam_file,
+                                                                         config_dict,
+                                                                         today,
+                                                                         local,
+                                                                         align_jobid)
+
 
 
 def workflow2():
@@ -315,4 +344,9 @@ def flow_control():
 
 
 if __name__ == "__main__":
-    flow_control()
+    sam_file = "/Users/annasintsova/git_repos/code/data/reads/SRR1051511_trimmed.sam"
+    config_dict = process_config(config_file="local_config")
+    today = set_up_file_handles()
+    local = True
+    run_sam_to_bam_conversion_and_sorting(sam_file, config_dict,
+                                          local, job_dependency='')

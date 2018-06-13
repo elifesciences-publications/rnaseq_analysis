@@ -26,7 +26,7 @@ def test_modules_trimmomatic():
                      "/Users/annasintsova/git_repos/code/tests/test_data/UTI24_control_trimmed.fastq " \
                      "ILLUMINACLIP:/Users/annasintsova/tools/" \
                      "Trimmomatic-0.36/adapters/TruSeq3-SE.fa:2:30:10:8:true" \
-                     " SLIDINGWINDOW:4:15 MINLEN:40 HEADCROP:0\n"
+                     " SLIDINGWINDOW:4:15 MINLEN:20 HEADCROP:0\n"
 
 
 
@@ -70,13 +70,23 @@ def test_modules_fastqc():
 
 def test_modules_align_build_index():
     reference = "data/ref/MG1655.fna"
-    bt2_base = "test_index"
-    output_directory = "tests/test_data"
+    bt2_base = "data/ref/MG1655_index"
     bowtie_bin = ""
+    script = align.build_bowtie_index(reference, bt2_base,
+                                      bowtie_bin)
+    expected_script = "bowtie2-build data/ref/MG1655.fna data/ref/MG1655_index\n"
+    assert script == expected_script
 
-    script = align.build_bowtie_index(reference, bt2_base, output_directory,
-                       bowtie_bin)
-
-    expected_script = "cd tests/test_data\n"\
-                      "bowtie2-build data/ref/MG1655.fna test_index\n"
+def test_modules_align():
+    fastq_file = "/Users/annasintsova/git_repos/code/data/reads/HM86_UR_copy.fastq.gz"
+    file_name = "/Users/annasintsova/git_repos/code/data/reads/HM86_UR_copy.fastq"
+    sam_file_name = "/Users/annasintsova/git_repos/code/data/reads/HM86_UR_copy.sam"
+    bt2_base = "/Users/annasintsova/git_repos/code/data/ref/MG1655_index"
+    bowtie_bin = ""
+    script = align.bowtie_align(fastq_file,
+                                sam_file_name,
+                                bt2_base, bowtie_bin)
+    expected_script = "gunzip {}\n{}bowtie2 -x {} "\
+                      "-U {} -S {}\n".format(fastq_file, bowtie_bin, bt2_base,
+                                             file_name, sam_file_name)
     assert script == expected_script

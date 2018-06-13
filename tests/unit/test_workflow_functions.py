@@ -107,6 +107,47 @@ def test_run_fastqc_after_run_trim_job():
     assert type(int(jobid2)) == int  # todo come up with a better assert statement
 
 
+def test_run_build_index_job(local_mg1655_index):
+    reference_genome, fastq_file, today, config_dict, local = local_mg1655_index
+    bt2, _ = workflow.run_build_index_job(reference_genome,
+                                          today, config_dict,
+                                          local)
+    assert bt2 == "/Users/annasintsova/git_repos/code/data/ref/MG1655_index"
+
+
+def test_run_align_job_local(local_mg1655_index):
+    reference_genome, fastq_file, today, config_dict, local = local_mg1655_index # todo make sure sam file exists
+    bt2, _ = workflow.run_build_index_job(reference_genome,
+                                          today, config_dict,
+                                          local)
+    sam_file, _ = workflow.run_alignment_job(fastq_file,
+                                          bt2, config_dict, today,
+                                          local)
+    assert os.path.isfile(sam_file)
+
+def test_run_sam_to_bam_conversion_and_sorting_local(local_mg1655_index):
+    sam_file = "/Users/annasintsova/git_repos/code/data/reads/SRR1051511_trimmed.sam"
+    _, _, today, config_dict, local = local_mg1655_index
+
+    bam_file, _ = workflow.run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today, local)
+    expected_bam_sorted = "/Users/annasintsova/git_repos/code/data/reads/SRR1051511_trimmed_sorted.bam"
+    expected_index_bam = "/Users/annasintsova/git_repos/code/data/reads/SRR1051511_trimmed_sorted.bam.bai"
+    expected_flagstat_file = "/Users/annasintsova/git_repos/code/data/reads/SRR1051511_trimmed_flagstat.txt"
+    assert os.path.isfile(bam_file)
+    assert os.path.isfile(expected_bam_sorted)
+    assert os.path.isfile(expected_index_bam)
+    #assert os.path.isfile(expected_flagstat_file)
+
+def test_run_alignments_for_single_genome(local_mg1655_fastq_folder):
+    genome, fastq_folder, today, config_dict, local = local_mg1655_fastq_folder
+    workflow.run_alignments_for_single_genome(genome, fastq_folder, config_dict, today, local)
+
+    file_names = workflow.find_fastq_files_in_a_tree(fastq_folder)  # todo test this function
+
+    for file in file_names:
+        bam_file = file.split(".")[0] + ".bam"
+        assert os.path.isfile(bam_file) # todo rerun this test with smaller fastq file
+
 
 
 if __name__ == "__main__":
