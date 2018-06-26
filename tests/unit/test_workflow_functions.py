@@ -142,12 +142,23 @@ def test_run_alignments_for_single_genome(local_mg1655_fastq_folder):
     genome, fastq_folder, today, config_dict, local = local_mg1655_fastq_folder
     workflow.run_alignments_for_single_genome(genome, fastq_folder, config_dict, today, local)
 
-    file_names = workflow.find_fastq_files_in_a_tree(fastq_folder)  # todo test this function
+    file_names = workflow.find_files_in_a_tree(fastq_folder)  # todo test this function
 
     for file in file_names:
         bam_file = file.split(".")[0] + ".bam"
         assert os.path.isfile(bam_file)
 
+def test_run_counts_for_single_genome_bedtools_local(day): # for testing strand is False
+    today = day
+    bam_folder = "/Users/annasintsova/git_repos/code/data/alignments"
+    gff = "/Users/annasintsova/git_repos/code/data/ref/MG1655.gff"
+    config_dict = workflow.process_config("local_config")
+    local = True
+    workflow.run_counts_for_single_genome(gff, bam_folder, config_dict, today, local)
+    file_names = workflow.find_files_in_a_tree(bam_folder, "bam")
+    for file in file_names:
+        count_file = file.split(".bam")[0] + "_counts_not_st.csv"
+        assert os.path.getsize(count_file) != 0
 
 
 if __name__ == "__main__":

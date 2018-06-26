@@ -10,6 +10,7 @@ from modules import process_fastq
 from modules import align
 from modules.helpers import to_str
 from modules import samtools
+from modules import counts
 
 
 def set_up_file_handles():
@@ -31,6 +32,16 @@ def process_config(config_file="config"):
     for section in config.sections():
         config_dict[section] = {name: value for name, value in config.items(section)}
     return config_dict
+
+
+def find_files_in_a_tree(folder, file_type='fastq'):  # todo refactor function name
+
+    f_files = []
+    for root, dirs, files in os.walk(folder, topdown=False):
+        for name in files:
+            if name.endswith(file_type):
+                f_files.append(os.path.join(root, name))
+    return f_files
 
 
 def submit_flux_job(output_directory, suffix, today, job_name, script, job_dependency=''):
@@ -159,9 +170,7 @@ def workflow1(files, output_directory, config_dict, today, local=False):
                                                          out_dir, today,
                                                          config_dict, local,
                                                          job_dependency=trim_jobid)
-    return "Jobs for workflow1 submitted" # todo test workflow1 on flux
-
-
+    return "Jobs for workflow1 submitted"  # todo test workflow1 on flux
 
 ####################################################################################################
 
@@ -197,7 +206,7 @@ def run_build_index_job(reference_genome,
         jobid = submit_flux_job(output_directory, suffix,
                                 today, "Bowtie_index", script, job_dependency)
         return bt2_base, jobid
-     # todo test index job on flux
+    # todo test index job on flux
 
 
 def run_alignment_job(fastq_file,
@@ -208,7 +217,7 @@ def run_alignment_job(fastq_file,
     output_directory = os.path.dirname(fastq_file)
     bowtie_bin = config_dict["Bowtie"]["bin"]
     suffix = to_str(os.path.basename(fastq_file).split(".")[0])
-    sam_file_name = os.path.join(output_directory, suffix  + ".sam")
+    sam_file_name = os.path.join(output_directory, suffix + ".sam")
     script = align.bowtie_align(fastq_file,
                                 sam_file_name,
                                 bt2_base,  bowtie_bin)
@@ -221,6 +230,23 @@ def run_alignment_job(fastq_file,
         return sam_file_name, jobid
     # todo test on flux
 
+def run_count_job_bedtools(gff, bam, config_dict, local, job_dependency=""):
+    strand = True if config_dict["Bedtools"]["strand"] == "True" else False
+    print(strand)
+    feat = config_dict["Bedtools"]["feat"]
+    if local:
+        count_file = counts.count_with_bedtools_local(gff, bam, strand, feat)
+        return count_file, ''
+    else:
+        print("make version for flux")  # todo make version for flux
+        # todo test this function
+
+
+
+
+#
+# def run_count_job_htseq(gff, bam, config_dict, local, job_dependency=""):
+#
 
 def run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today,
                                           local, job_dependency=''):
@@ -229,11 +255,7 @@ def run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today,
     suffix = sam_file.split(".")[0]
     bam_file = suffix+".bam"
     sorted_bam_file = bam_file.split(".bam")[0]+"_sorted.bam"
-    #flagstat_file = suffix+"_flagstat.txt"
-
-    script = samtools.sam2bam(sam_file, bam_file, # removed flagstat file
-
-                              samtools_bin)
+    script = samtools.sam2bam(sam_file, bam_file, samtools_bin)
     if local:
         submit_local_job(script)
         return sorted_bam_file, ''
@@ -242,36 +264,27 @@ def run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today,
                                 today, "Bowtie_Align", script, job_dependency)
         return sorted_bam_file, jobid
 
-
-def run_alignments_for_multiple_genomes(genome_read_pairs, today, config_dict): #list of tuples
-    bowtie_bin = config_dict["Bowtie"]["bin"]
-    samtools_bin = config_dict["Samtools"]["bin"]
-    for genome_read_pair in genome_read_pairs:
-        genome = genome_read_pair[0]
-        fastq_file = genome_read_pair[1]
-        output_directory = genome_read_pair[2]
-        #run build index
-        bt2_base, index_jobid = run_build_index_job(genome, output_directory,
-                            today, bowtie_bin)
-        #run alignment job
-        sam_file, align_jobid = run_alignment_job(fastq_file, output_directory,
-                          bt2_base, bowtie_bin, today,
-                          job_dependency=index_jobid)
-        #run sam job
-        # bam_file, samtools_jobid = run_sam_to_bam_conversion_and_sorting(sam_file,
-        #                                                                  output_directory,
-        #                                                                  today,
-        #                                                                  samtools_bin,
-        #                                                                  job_dependency=align_jobid)
-
-def find_fastq_files_in_a_tree(folder, file_type='fastq'): # todo refactor function name
-
-    fastq_files = []
-    for root, dirs, files in os.walk(folder, topdown=False):
-        for name in files:
-            if file_type in name:
-                fastq_files.append(os.path.join(root, name))
-    return fastq_files
+#
+# def run_alignments_for_multiple_genomes(genome_read_pairs, today, config_dict): #list of tuples
+#     bowtie_bin = config_dict["Bowtie"]["bin"]
+#     samtools_bin = config_dict["Samtools"]["bin"]
+#     for genome_read_pair in genome_read_pairs:
+#         genome = genome_read_pair[0]
+#         fastq_file = genome_read_pair[1]
+#         output_directory = genome_read_pair[2]
+#         #run build index
+#         bt2_base, index_jobid = run_build_index_job(genome, output_directory,
+#                             today, bowtie_bin)
+#         #run alignment job
+#         sam_file, align_jobid = run_alignment_job(fastq_file, output_directory,
+#                           bt2_base, bowtie_bin, today,
+#                           job_dependency=index_jobid)
+#         #run sam job
+#         # bam_file, samtools_jobid = run_sam_to_bam_conversion_and_sorting(sam_file,
+#         #                                                                  output_directory,
+#         #                                                                  today,
+#         #                                                                  samtools_bin,
+#         #                                                                  job_dependency=align_jobid)
 
 
 def run_alignments_for_single_genome(genome, fastq_folder, config_dict, today, local):
@@ -282,11 +295,10 @@ def run_alignments_for_single_genome(genome, fastq_folder, config_dict, today, l
                                                 config_dict,
                                                 local)
     # Get fastq files
-    fastq_files = find_fastq_files_in_a_tree(fastq_folder, "fastq")
+    fastq_files = find_files_in_a_tree(fastq_folder, "fastq")
     bams = []
     # run alignment job
     for fastq_file in fastq_files:
-
         sam_file, align_jobid = run_alignment_job(fastq_file,
                                                   bt2_base, config_dict,
                                                   today, local,
@@ -298,15 +310,25 @@ def run_alignments_for_single_genome(genome, fastq_folder, config_dict, today, l
                                                                          local,
                                                                          align_jobid)
         bams.append(bam_file)
-
     with open(os.path.join(fastq_folder, 'bam_alignment_stats.csv'), "w") as fo:
         fo.write("sample,total,mapped,percent_mapped\n")
         for bam in bams:
-
             filename = os.path.basename(bam).split(".bam")[0]
             total, mapped, pcnt_mapped = samtools.get_bam_stats(bam)
             fo.write("{},{},{},{}\n".format(filename, total, mapped, pcnt_mapped))
 
+
+def run_counts_for_single_genome(gff, bam_folder, config_dict, today, local):
+    method = config_dict["Counts"]["method"]
+
+    # Get bam files
+    bams = find_files_in_a_tree(bam_folder, "bam")
+    # todo add bedtools to flux options, right now only local
+    if method == 'bedtools':
+        for bam in bams:
+            count_file, count_jobid = run_count_job_bedtools(gff, bam, config_dict, local, job_dependency="")
+    # todo add htseq option
+    # todo test this function
 
 def workflow_align(genome, fastq_folder, config_dict, today, local):
 
@@ -316,6 +338,12 @@ def workflow_align(genome, fastq_folder, config_dict, today, local):
 
 def workflow_test(analysis, input_folder, output_folder):
     return analysis, input_folder, output_folder
+
+
+def workflow_count(genome, bam_folder, config_dict, today, local):
+    run_counts_for_single_genome(genome, bam_folder, config_dict, today, local)
+
+
 
 
 #####################################################################################################
@@ -329,6 +357,13 @@ and count reads, combine reads into single files, calculate RPKMs
 
 #####################################################################################################
 
+def test_function():
+    gff = "/Users/annasintsova/git_repos/code/data/ref/MG1655.gff"
+    bam_folder = "/Users/annasintsova/git_repos/code/data/alignments"
+    config_dict = process_config("local_config")
+    today = "Tuesday"
+    local=True
+    run_counts_for_single_genome(gff, bam_folder, config_dict, today, local)
 
 def flow_control():
 
@@ -359,7 +394,10 @@ def flow_control():
 
         genome = args.reference_genome
         print(workflow_align(genome, fastq_folder, config_dict, today, args.local))
-
+    elif args.analysis == 'count':
+        genome = args.reference_genome
+        print(workflow_count(genome, fastq_folder, config_dict, today, args.local))
 
 if __name__ == "__main__":
     flow_control()
+    #test_function()

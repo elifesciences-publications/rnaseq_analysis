@@ -1,41 +1,47 @@
+import pybedtools
+import os
 
 
-def count_reads(file, out_dir, ref, config,
-                form="bam", order="pos", attr = "ID",
-                mode="union", stranded="yes",
-                feature = "CDS"):
+def count_reads(bam, gff, config_dict):
     """
 
-
-    :param files:
-    :param out_dir:
-    :param ref: what is a ref? gff file?
-    :param config:
-    :param form:
-    :param order:
-    :param mode:
-    :param stranded:
-    :param feature:
-    :return:
     """
+    htseq_path = config_dict["HTSeq"]["bin"]
+    form = config_dict["HTSeq"]["form"]
+    order = config_dict["HTSeq"]["order"]
+    attr = config_dict["HTSeq"]["attr"]
+    mode = config_dict["HTSeq"]["mode"]
+    stranded = config_dict["HTSeq"]["stranded"]
+    feature = config_dict["HTSeq"]["feature"] # todo update flux config
+    count_file = bam.split(".bam")[0] + "_counts.txt"
+    script = "htseq-count -f {0} -r {1} -m {2}" \
+             " -s {3} -t {4} -i {8} {5} {6} > {7}\n".format(form, order,
+                                                            mode, stranded, feature, bam,
+                                                            gff, count_file, attr)
+    return script
 
-    # htseq_path = config.get("HTSEQ", "bin")
-    scripts = []
-    if os.path.isdir(ref):
-        annot_files = [os.path.join(ref, r) for r in os.listdir(ref)]
-    else:
-        annot_files = [ref]
-    for fh in files:
-        prefix = os.path.basename(fh).split("_")[0]
-        if len(annot_files) > 1:
-            annot = [an for an in annot_files if prefix in an][0]
-        else:
-            annot = annot_files[0]
-        count_file = os.path.join(out_dir, (os.path.basename(fh).split(".")[0] + "_counts"))
-        script = "htseq-count -f {0} -r {1} -m {2}" \
-                  " -s {3} -t {4} -i {8} {5} {6} > {7}\n".format(form, order,
-                                                              mode, stranded, feature, fh,
-                                                              annot, count_file, attr)
-        scripts.append((os.path.basename(count_file), script))
 
-    return scripts
+
+
+
+def count_with_bedtools_local(gff, bam, strand=False, feat="locus_tag"):
+    a = pybedtools.BedTool(gff)
+    b = pybedtools.BedTool(bam)
+    suffix = "st" if strand else "not_st"
+    count_file = bam.split(".bam")[0] + "_counts_{}.csv".format(suffix)
+    counts = a.coverage(b, counts=True, s=strand)
+    with open(count_file, "w") as fo:
+        for f in counts.features():
+            if feat not in str(f):
+                continue
+            else:
+                identifier = str(f[-2].split("{}=".format(feat))[1].split(";")[0].strip())
+                fo.write("{},{}\n".format(identifier, f[-1]))
+
+    return count_file
+
+# if __name__ == "__main__":
+#     gff = "/Users/annasintsova/git_repos/code/data/ref/MG1655.gff"
+#     bam = "/Users/annasintsova/git_repos/code/data/alignments/SRR1051490_sorted.bam"
+#     count_with_bedtools_local(gff, bam, strand=False, feat="locus_tag")
+

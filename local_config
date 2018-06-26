@@ -11,3 +11,22 @@ bin =
 
 [Samtools]
 bin = /Users/annasintsova/tools/samtools-1.7/samtools
+
+[Counts]
+method = bedtools
+#other option is htseq
+
+[Bedtools]
+
+strand = True
+feat = locus_tag
+
+
+[HTSeq]
+bin =
+form = bam
+order = pos
+attr = locus_tag
+mode = union
+stranded = yes
+feature = CDS

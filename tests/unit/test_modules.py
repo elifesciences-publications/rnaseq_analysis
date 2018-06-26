@@ -9,6 +9,7 @@ from modules import process_fastq
 from modules import generate_PBS_script as pbs
 from modules import align
 from modules import samtools
+from modules import counts
 from modules.helpers import to_str
 
 
@@ -101,3 +102,14 @@ def test_modules_samtools_get_bam_stats():
     assert total == actual_total
     assert mapped == actual_mapped
     assert pcnt_mapped == actual_pcnt_mapped
+
+
+
+
+def test_modules_counts_count_with_bedtools_local():
+    gff = "/Users/annasintsova/git_repos/code/data/ref/MG1655.gff"
+    bam = "/Users/annasintsova/git_repos/code/data/alignments/SRR1051490_sorted.bam"
+    counts.count_with_bedtools_local(gff, bam, False, "locus_tag")
+    counts.count_with_bedtools_local(gff, bam, True, "locus_tag")
+    assert os.path.getsize(bam.split('.bam')[0] + "_counts_st.csv") != 0
+    assert os.path.getsize(bam.split('.bam')[0] + "_counts_not_st.csv") != 0
