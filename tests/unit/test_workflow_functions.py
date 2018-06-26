@@ -146,7 +146,7 @@ def test_run_alignments_for_single_genome(local_mg1655_fastq_folder):
 
     for file in file_names:
         bam_file = file.split(".")[0] + ".bam"
-        assert os.path.isfile(bam_file) # todo rerun this test with smaller fastq file
+        assert os.path.isfile(bam_file)
 
 
 

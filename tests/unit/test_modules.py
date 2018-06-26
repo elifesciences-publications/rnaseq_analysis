@@ -8,6 +8,7 @@ import workflow
 from modules import process_fastq
 from modules import generate_PBS_script as pbs
 from modules import align
+from modules import samtools
 from modules.helpers import to_str
 
 
@@ -90,3 +91,13 @@ def test_modules_align():
                       "-U {} -S {}\n".format(fastq_file, bowtie_bin, bt2_base,
                                              file_name, sam_file_name)
     assert script == expected_script
+
+def test_modules_samtools_get_bam_stats():
+    bam = "/Users/annasintsova/git_repos/code/data/alignments/SRR1051490_sorted.bam"
+    total = 1605460
+    mapped = 1347672
+    pcnt_mapped = 83.94
+    actual_total, actual_mapped, actual_pcnt_mapped = samtools.get_bam_stats(bam)
+    assert total == actual_total
+    assert mapped == actual_mapped
+    assert pcnt_mapped == actual_pcnt_mapped

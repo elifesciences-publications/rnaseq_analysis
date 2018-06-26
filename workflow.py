@@ -228,18 +228,19 @@ def run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today,
     output_directory = os.path.dirname(sam_file)
     suffix = sam_file.split(".")[0]
     bam_file = suffix+".bam"
-    flagstat_file = suffix+"_flagstat.txt"
+    sorted_bam_file = bam_file.split(".bam")[0]+"_sorted.bam"
+    #flagstat_file = suffix+"_flagstat.txt"
 
-    script = samtools.sam2bam(sam_file, bam_file,
-                              flagstat_file,
+    script = samtools.sam2bam(sam_file, bam_file, # removed flagstat file
+
                               samtools_bin)
     if local:
-        submit_local_job(script) # todo make flagstat work for local run
-        return bam_file, ''
+        submit_local_job(script)
+        return sorted_bam_file, ''
     else:
         jobid = submit_flux_job(output_directory, suffix, # todo make sure suffix/output_directory still work
                                 today, "Bowtie_Align", script, job_dependency)
-        return bam_file, jobid
+        return sorted_bam_file, jobid
 
 
 def run_alignments_for_multiple_genomes(genome_read_pairs, today, config_dict): #list of tuples
@@ -263,7 +264,7 @@ def run_alignments_for_multiple_genomes(genome_read_pairs, today, config_dict): 
         #                                                                  samtools_bin,
         #                                                                  job_dependency=align_jobid)
 
-def find_fastq_files_in_a_tree(folder, file_type): # todo refactor function name
+def find_fastq_files_in_a_tree(folder, file_type='fastq'): # todo refactor function name
 
     fastq_files = []
     for root, dirs, files in os.walk(folder, topdown=False):
@@ -282,7 +283,7 @@ def run_alignments_for_single_genome(genome, fastq_folder, config_dict, today, l
                                                 local)
     # Get fastq files
     fastq_files = find_fastq_files_in_a_tree(fastq_folder, "fastq")
-
+    bams = []
     # run alignment job
     for fastq_file in fastq_files:
 
@@ -296,11 +297,21 @@ def run_alignments_for_single_genome(genome, fastq_folder, config_dict, today, l
                                                                          today,
                                                                          local,
                                                                          align_jobid)
+        bams.append(bam_file)
+
+    with open(os.path.join(fastq_folder, 'bam_alignment_stats.csv'), "w") as fo:
+        fo.write("sample,total,mapped,percent_mapped\n")
+        for bam in bams:
+
+            filename = os.path.basename(bam).split(".bam")[0]
+            total, mapped, pcnt_mapped = samtools.get_bam_stats(bam)
+            fo.write("{},{},{},{}\n".format(filename, total, mapped, pcnt_mapped))
 
 
+def workflow_align(genome, fastq_folder, config_dict, today, local):
 
-def workflow2():
-    return "Second Workflow!"
+    run_alignments_for_single_genome(genome, fastq_folder, config_dict, today, local)
+    return "Simple Align Workflow!"
 
 
 def workflow_test(analysis, input_folder, output_folder):
@@ -324,13 +335,16 @@ def flow_control():
     today = set_up_file_handles()
     args = get_args().parse_args()
     if os.path.isdir(args.input[0]):
+        fastq_folder = args.input[0] # todo refactor this
         files = [os.path.join(os.path.abspath(args.input[0]), fi) for fi in os.listdir(args.input[0])]
     elif args.input:
         files = [os.path.abspath(fi) for fi in args.input]
     else:
         raise IOError
-    output_directory = os.path.abspath(args.out_dir)
-    subprocess.call(["mkdir", "-p", output_directory])
+    if args.out_dir:  # todo factor out output directory, output goes where input file is
+        output_directory = os.path.abspath(args.out_dir)
+        subprocess.call(["mkdir", "-p", output_directory])
+
     if args.local:
         config_dict = process_config("local_config")
     else:
@@ -341,12 +355,11 @@ def flow_control():
 
     elif args.analysis == 'workflow1':
         print(workflow1(files, output_directory, config_dict, today, args.local))
+    elif args.analysis == 'align':
+
+        genome = args.reference_genome
+        print(workflow_align(genome, fastq_folder, config_dict, today, args.local))
 
 
 if __name__ == "__main__":
-    sam_file = "/Users/annasintsova/git_repos/code/data/reads/SRR1051511_trimmed.sam"
-    config_dict = process_config(config_file="local_config")
-    today = set_up_file_handles()
-    local = True
-    run_sam_to_bam_conversion_and_sorting(sam_file, config_dict,
-                                          local, job_dependency='')
+    flow_control()
