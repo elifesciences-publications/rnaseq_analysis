@@ -3,9 +3,6 @@ import pysamstats
 #import matplotlib.pyplot as plt
 
 
-
-
-
 def sam2bam(sam_file, bam_file,  samtools_bin):  # removed flagstat option
 
     script = "{0} view -b -o {1} -@ 4 {2}\n".format(samtools_bin, bam_file, sam_file)
@@ -20,7 +17,7 @@ def get_bam_stats(bam):
     mapped = mybam.mapped
     total = mybam.mapped + mybam.unmapped
     pnt_mapped = mapped/total*100
-    return total,mapped, round(pnt_mapped, 2)
+    return total, mapped, round(pnt_mapped, 2)
 
 
 

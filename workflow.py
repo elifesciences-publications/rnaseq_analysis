@@ -34,7 +34,7 @@ def process_config(config_file="config"):
     return config_dict
 
 
-def find_files_in_a_tree(folder, file_type='fastq'):  # todo refactor function name
+def find_files_in_a_tree(folder, file_type='fastq'):
 
     f_files = []
     for root, dirs, files in os.walk(folder, topdown=False):
@@ -77,7 +77,6 @@ def get_args():
                         required=False)  # explore metavar
     parser.add_argument("-local", "--local", help='Run locally or on flux', action='store_true',
                         required=False)
-
     return parser
 
 #######################################################################################################
@@ -96,14 +95,14 @@ step 2. run fastqc on trimmed fastq file
 
 """
 
+# 1 Run trimmomatic job
 
-def run_trim_job(fastq_file_input, output_directory, today,
+def run_trim_job(fastq_file_input, today,
                  config_dict, local=False,
                  job_dependency=''):
-    """
 
+    """
     :param fastq_file_input: single fastq file (can be gzipped)
-    :param output_directory: output directory
     :param today: today's date
     :param config_dict: output of process_config
     :param local: whether job is running locally or on flux
@@ -113,20 +112,16 @@ def run_trim_job(fastq_file_input, output_directory, today,
     """
 
     assert '.fastq' in fastq_file_input
-    assert os.path.isdir(output_directory)
-
+    output_directory = os.path.dirname(fastq_file_input)
     trimmomatic_bin = config_dict["Trimmomatic"]["bin"]
     trimmomatic_adapters = config_dict["Trimmomatic"]["adapters"]
-
     suffix = to_str(os.path.basename(fastq_file_input).split(".fastq")[0])
-
     fastq_file_output = os.path.join(output_directory, suffix+"_trimmed.fastq")
     script = process_fastq.trimmomatic(fastq_file_input,
                                        fastq_file_output,
                                        trimmomatic_bin,
                                        trimmomatic_adapters)
     if local:
-        print(script)
         submit_local_job(script)
         return fastq_file_output, ''
     else:
@@ -134,16 +129,16 @@ def run_trim_job(fastq_file_input, output_directory, today,
                                 today, "Trimmomatic", script, job_dependency)
         return fastq_file_output, jobid
 
-
-def run_fastqc_job(fastq_file, output_directory, today,
+# 2 Run FastQC
+def run_fastqc_job(fastq_file, today,
                    config_dict, local=False, job_dependency=''):
 
     fastqc_bin = config_dict["FastQC"]["bin"]
+    output_directory = os.path.dirname(fastq_file)
     fastqc_output_dir = os.path.join(output_directory, "FastQC_results")
     subprocess.call(["mkdir", "-p", fastqc_output_dir])
     script = process_fastq.fastqc(fastq_file, fastqc_output_dir,
                                   fastqc_bin)
-
     suffix = os.path.basename(fastq_file).split(".")[0]
     if local:
         submit_local_job(script)
@@ -153,6 +148,73 @@ def run_fastqc_job(fastq_file, output_directory, today,
                                 today, "FastQC", script, job_dependency)
         return fastqc_output_dir, jobid
 
+# 3 Build Index
+def run_build_index_job(reference_genome,
+                        today, config_dict,
+                        local=False, job_dependency=''):
+    bowtie_bin = config_dict["Bowtie"]["bin"]
+    suffix = to_str(reference_genome.split(".f")[0])
+    bt2_base = suffix + '_index'
+    script = align.build_bowtie_index(reference_genome, bt2_base, bowtie_bin)
+    if local:
+        submit_local_job(script)
+        return bt2_base, ''
+    else:
+        output_directory = os.path.dirname(reference_genome)
+        jobid = submit_flux_job(output_directory, suffix,
+                                today, "Bowtie_index", script, job_dependency)
+        return bt2_base, jobid
+    # todo test index job on flux
+
+# 4 Align
+def run_alignment_job(fastq_file, bt2_base, config_dict, today,
+                      local=False, job_dependency=''):
+    output_directory = os.path.dirname(fastq_file)
+    bowtie_bin = config_dict["Bowtie"]["bin"]
+    suffix = to_str(os.path.basename(fastq_file).split(".")[0])
+    sam_file_name = os.path.join(output_directory, suffix + ".sam")
+    script = align.bowtie_align(fastq_file,
+                                sam_file_name,
+                                bt2_base,  bowtie_bin)
+    if local:
+        submit_local_job(script)
+        return sam_file_name, ''
+    else:
+        jobid = submit_flux_job(output_directory, suffix,
+                                today, "Bowtie_Align", script, job_dependency)
+        return sam_file_name, jobid
+    # todo test on flux
+
+# 5 Convert to sam and sort
+def run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today,
+                                          local, job_dependency=''):
+    samtools_bin = config_dict["Samtools"]["bin"]
+    output_directory = os.path.dirname(sam_file)
+    suffix = sam_file.split(".")[0]
+    bam_file = suffix+".bam"
+    sorted_bam_file = bam_file.split(".bam")[0]+"_sorted.bam"
+    script = samtools.sam2bam(sam_file, bam_file, samtools_bin)
+    if local:
+        submit_local_job(script)
+        return sorted_bam_file, ''
+    else:
+        jobid = submit_flux_job(output_directory, suffix, # todo make sure suffix/output_directory still work
+                                today, "Bowtie_Align", script, job_dependency)
+        return sorted_bam_file, jobid
+
+# 6 Count with bedtools
+def run_count_job_bedtools(gff, bam, config_dict, today, local, job_dependency=""):
+    strand = True if config_dict["Bedtools"]["strand"] == "True" else False
+    feat = config_dict["Bedtools"]["feat"]
+    if local:
+        count_file = counts.count_with_bedtools_local(gff, bam, strand, feat)
+        return count_file, ''
+    else:
+        print("make version for flux")  # todo make version for flux
+        # todo test this function
+
+
+#>>>>>>>>>>>>
 
 def workflow1(files, output_directory, config_dict, today, local=False):
 
@@ -163,13 +225,15 @@ def workflow1(files, output_directory, config_dict, today, local=False):
         subprocess.call(["mkdir", "-p", out_dir])
 
         # 2. run trim job
-        trimmed_fastq_file, trim_jobid = run_trim_job(file, out_dir, today,
+        trimmed_fastq_file, trim_jobid = run_trim_job(file, today,
                                                       config_dict, local)
 
         fastqc_output_dir, fastqc_jobid = run_fastqc_job(trimmed_fastq_file,
                                                          out_dir, today,
                                                          config_dict, local,
                                                          job_dependency=trim_jobid)
+
+
     return "Jobs for workflow1 submitted"  # todo test workflow1 on flux
 
 ####################################################################################################
@@ -188,81 +252,11 @@ if both are directories have to have a function that matches jobs/files
 # NEED TO ADD local option to these
 
 
-def run_build_index_job(reference_genome,
-                        today, config_dict,
-                        local=False, job_dependency=''):
-    bowtie_bin = config_dict["Bowtie"]["bin"]
-    suffix = to_str(reference_genome.split(".f")[0])
-    bt2_base = suffix + '_index'
-    script = align.build_bowtie_index(reference_genome,
-                                      bt2_base,
-                                      bowtie_bin)
-    print(script)
-    if local:
-        submit_local_job(script)
-        return bt2_base, ''
-    else:
-        output_directory = os.path.dirname(reference_genome)
-        jobid = submit_flux_job(output_directory, suffix,
-                                today, "Bowtie_index", script, job_dependency)
-        return bt2_base, jobid
-    # todo test index job on flux
-
-
-def run_alignment_job(fastq_file,
-                      # output directory is fastqfile directory
-                      bt2_base, config_dict, today,
-                      local=False,
-                      job_dependency=''):
-    output_directory = os.path.dirname(fastq_file)
-    bowtie_bin = config_dict["Bowtie"]["bin"]
-    suffix = to_str(os.path.basename(fastq_file).split(".")[0])
-    sam_file_name = os.path.join(output_directory, suffix + ".sam")
-    script = align.bowtie_align(fastq_file,
-                                sam_file_name,
-                                bt2_base,  bowtie_bin)
-    if local:
-        submit_local_job(script)
-        return sam_file_name, ''
-    else:
-        jobid = submit_flux_job(output_directory, suffix,
-                                today, "Bowtie_Align", script, job_dependency)
-        return sam_file_name, jobid
-    # todo test on flux
-
-def run_count_job_bedtools(gff, bam, config_dict, local, job_dependency=""):
-    strand = True if config_dict["Bedtools"]["strand"] == "True" else False
-    print(strand)
-    feat = config_dict["Bedtools"]["feat"]
-    if local:
-        count_file = counts.count_with_bedtools_local(gff, bam, strand, feat)
-        return count_file, ''
-    else:
-        print("make version for flux")  # todo make version for flux
-        # todo test this function
-
-
-
 
 #
 # def run_count_job_htseq(gff, bam, config_dict, local, job_dependency=""):
 #
 
-def run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today,
-                                          local, job_dependency=''):
-    samtools_bin = config_dict["Samtools"]["bin"]
-    output_directory = os.path.dirname(sam_file)
-    suffix = sam_file.split(".")[0]
-    bam_file = suffix+".bam"
-    sorted_bam_file = bam_file.split(".bam")[0]+"_sorted.bam"
-    script = samtools.sam2bam(sam_file, bam_file, samtools_bin)
-    if local:
-        submit_local_job(script)
-        return sorted_bam_file, ''
-    else:
-        jobid = submit_flux_job(output_directory, suffix, # todo make sure suffix/output_directory still work
-                                today, "Bowtie_Align", script, job_dependency)
-        return sorted_bam_file, jobid
 
 #
 # def run_alignments_for_multiple_genomes(genome_read_pairs, today, config_dict): #list of tuples
