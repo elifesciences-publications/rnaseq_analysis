@@ -25,42 +25,53 @@ import argparse
 import datetime as dt
 import os
 
+
 def parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-l', '--gene_list_file',  help = 'file with list of genes',
-                            type=str, required=True)
+    parser.add_argument('-l', '--gene_list_file',  help='file with list of genes',
+                        type=str, required=True)
     parser.add_argument('-g', '--genome', help='Genome', type=str, required=True)
-    parser.add_argument('-o', '--output_prefix', type=str,required=True)
+    parser.add_argument('-o', '--output_prefix', type=str, required=True)
     return parser
 
 
-def getgenes(genome, gene_list_txt):
+def get_genes(genome, gene_list_txt, sep=",", hdr=True, id_col=0):
     """
     :param genome: string, KEGG genome designation, ex. ecc for CFT073, eco for MG1655
     :param gene_list_txt: list of genes for which info/seq is needed, have to Gene entry name or accession (from KEGG API)
+    :param sep: how fields are separated in the gene_list_txt
+    :param hdr: whether gene_list_txt has a header
+    :param id_col: where gene name/tag located in the file
     :return: list KEGG API compatible gene requests, ex. genome:geneid
     """
-    genes = []
-    with open (gene_list_txt) as gl:
-        genes = [line.rstrip() for line in gl]
-    return ["{}:{}".format(genome, gene) for gene in genes]
 
+    with open(gene_list_txt) as gl:
+        if hdr:
+            gl.readline() # skipping the header
+        try:
+            genes = [line.rstrip().split(sep)[id_col] for line in gl]
+        except:
+            return []
+    return ["{}:{}".format(genome, gene) for gene in genes]
 
 
 def getgeneInfo(gene_call_list, output_prefix):
 
+    all_gene_info = []
+    if not len(gene_call_list):
+        return "No genes in the list"
     for gene in gene_call_list:
         try:
             url = "http://rest.kegg.jp/get/{}".format(gene)
             with urllib.request.urlopen(url) as f:
                 lines = f.read().decode('utf-8').splitlines()
 
-            gene_info = OrderedDict([('locus_tag',''),
-                                     ('name',''),
-                                     ('definition',''),
-                                     ('pathway',''),
-                                     ('aa_seq',''),
-                                     ('nt_seq','')]) # can add more if needed
+            gene_info = OrderedDict([('locus_tag', ''),
+                                     ('name', ''),
+                                     ('definition', ''),
+                                     ('pathway', ''),
+                                     ('aa_seq', ''),
+                                     ('nt_seq', '')])  # can add more if needed
 
             for i in range(len(lines)):
                 field = lines[i].split()[0]
@@ -103,11 +114,11 @@ def getgeneInfo(gene_call_list, output_prefix):
 
 
             info_str = "\t".join([v for k,v in gene_info.items() if k in ["locus_tag", "name", "definition","pathway"]]).rstrip('\t')
-
+            all_gene_info.append(gene_info)
             aa_str = ">{}\n{}".format(gene, gene_info['aa_seq'])
             nt_str = ">{}\n{}".format(gene, gene_info['nt_seq'])
             # Want to write to file right away, in case connection breaks
-            with open(output_prefix+"_info.tab", "a") as of:
+            with open(output_prefix+"_info.tab", "a") as of: # todo refactor this
                 of.write(info_str+"\n")
             with open(output_prefix+"_aa.fasta", "a") as of:
                 of.write(aa_str+"\n")
@@ -116,10 +127,11 @@ def getgeneInfo(gene_call_list, output_prefix):
         except:
             with open(output_prefix+"_info.tab", "a") as of:
                 of.write("{}\tNaN\tNaN\tNaN\n".format(gene.split(":")[1]))
+
             continue
+    return all_gene_info
 
-
-def searchKEGGGenome(genome = "eco", search_term = "ribosomal subunit", out_dir = "."):
+def searchKEGGGenome(genome="eco", search_term="ribosomal subunit", out_dir="."):
     url = "http://rest.kegg.jp/list/{}".format(genome)
     search_results = []
     with urllib.request.urlopen(url) as f:
@@ -135,7 +147,7 @@ def searchKEGGGenome(genome = "eco", search_term = "ribosomal subunit", out_dir 
     return [line.split()[0].split(":")[1] for line in search_results]
 
 
-def exploreKEGG():
+def explore_kegg():
     url = "http://rest.kegg.jp/list/ecc"
     with urllib.request.urlopen(url) as f:
         lines = f.read().decode('utf-8').splitlines()
@@ -161,11 +173,11 @@ def exploreKEGG():
         for l in lines:
             print(l)
             if l.split()[0] == "NAME":
-                name_field +=1
+                name_field += 1
             elif l.split()[0] == "DEFINITION":
-                definition_field +=1
+                definition_field += 1
             elif l.split()[0] == "ORGANISM":
-                organism_field +=1
+                organism_field += 1
             elif l.split()[0] == "PATHWAY":
                 pathway_field += 1
             elif l.split()[0] == "BRITE":
@@ -179,10 +191,15 @@ def exploreKEGG():
     print("Number of BRITE fields: {}".format(brite_field))
     print("Number of AASEQ fields: {}".format(aa_seq_field))
 
+
+def process_gene_id_file(genome, gene_list_txt, output_prefix, sep=",", hdr=True, id_col=0):
+    gene_list = get_genes(genome, gene_list_txt, sep, hdr, id_col)
+    info = getgeneInfo(gene_list, output_prefix)
+    return info
+
+
 if __name__ == "__main__":
 
     args = parser().parse_args()
-    gene_call_list = getgenes(args.genome, args.gene_list_file)
+    gene_call_list = get_genes(args.genome, args.gene_list_file)
     getgeneInfo(gene_call_list, args.output_prefix)
-    #print(searchKEGGGenome("eco", "ribosomal subunit",
-     #            "/Users/annasintsova/git_repos/HUTI-RNAseq/results/resource_allocation"))
