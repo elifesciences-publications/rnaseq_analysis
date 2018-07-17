@@ -97,10 +97,8 @@ step 2. run fastqc on trimmed fastq file
 
 # 1 Run trimmomatic job
 
-def run_trim_job(fastq_file_input, today,
-                 config_dict, local=False,
-                 job_dependency=''):
 
+def run_trim_job(fastq_file_input, today, config_dict, local=False, job_dependency=''):
     """
     :param fastq_file_input: single fastq file (can be gzipped)
     :param today: today's date
@@ -130,12 +128,14 @@ def run_trim_job(fastq_file_input, today,
         return fastq_file_output, jobid
 
 # 2 Run FastQC
-def run_fastqc_job(fastq_file, today,
-                   config_dict, local=False, job_dependency=''):
+
+
+def run_fastqc_job(fastq_file, today, config_dict, local=False, job_dependency=''):
 
     fastqc_bin = config_dict["FastQC"]["bin"]
+    file_prefix = os.path.basename(fastq_file).split(".fastq")[0]
     output_directory = os.path.dirname(fastq_file)
-    fastqc_output_dir = os.path.join(output_directory, "FastQC_results")
+    fastqc_output_dir = os.path.join(output_directory, "{}_FastQC_results".format(file_prefix))
     subprocess.call(["mkdir", "-p", fastqc_output_dir])
     script = process_fastq.fastqc(fastq_file, fastqc_output_dir,
                                   fastqc_bin)
@@ -149,9 +149,9 @@ def run_fastqc_job(fastq_file, today,
         return fastqc_output_dir, jobid
 
 # 3 Build Index
-def run_build_index_job(reference_genome,
-                        today, config_dict,
-                        local=False, job_dependency=''):
+
+
+def run_build_index_job(reference_genome, today, config_dict, local=False, job_dependency=''):
     bowtie_bin = config_dict["Bowtie"]["bin"]
     suffix = to_str(reference_genome.split(".f")[0])
     bt2_base = suffix + '_index'
@@ -204,14 +204,29 @@ def run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today,
 
 # 6 Count with bedtools
 def run_count_job_bedtools(gff, bam, config_dict, today, local, job_dependency=""):
+    output_directory = os.path.dirname(bam)
     strand = True if config_dict["Bedtools"]["strand"] == "True" else False
     feat = config_dict["Bedtools"]["feat"]
     if local:
         count_file = counts.count_with_bedtools_local(gff, bam, strand, feat)
         return count_file, ''
     else:
-        print("make version for flux")  # todo make version for flux
-        # todo test this function
+        suffix = "st" if strand else "not_st"
+        count_file = bam.split(".bam")[0] + "_counts_{}.csv".format(suffix)
+        script = counts.count_with_bedtools_flux(gff, bam, count_file, config_dict, strand)
+        name = bam.split(".")[0]
+        jobid = submit_flux_job(output_directory, name,  # todo make sure suffix/output_directory still work
+                                today, "Count", script, job_dependency)
+        return count_file, jobid
+
+        #
+        # with open(count_file, "w") as fo:
+        #     for f in counts.features():
+        #         if feat not in str(f):
+        #             continue
+        #         else:
+        #             identifier = str(f[-2].split("{}=".format(feat))[1].split(";")[0].strip())
+        #             fo.write("{},{}\n".format(identifier, f[-1]))
 
 
 #>>>>>>>>>>>>

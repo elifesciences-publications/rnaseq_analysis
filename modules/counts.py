@@ -21,6 +21,17 @@ def count_reads(bam, gff, config_dict):
     return script
 
 
+def count_with_bedtools_flux(gff, bam, count_file, config_dict, strand=False):
+
+    bedtools_path = config_dict["bedtools"]["bin"]
+    s = " -s" if strand else ""
+    suffix = "st" if strand else "not_st"
+    count_file = bam.split(".bam")[0] + "_counts_{}.csv".format(suffix)
+    script = "{}/bedtools coverage -a {} -b SRR1051490_sorted.bam -counts{}>{}".format(bedtools_path, gff,
+                                                                                       bam, s, count_file)
+    return script
+
+
 
 
 

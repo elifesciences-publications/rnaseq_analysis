@@ -51,24 +51,30 @@ def local_bam(tmpdir, day):
     yield (str(b_file), str(g_file), today, config_dict, local)
 
 
-# @pytest.fixture()
-# def local_mg1655_fna(tmpdir, day):
-#     reference_genome = "/Users/annasintsova/git_repos/code/data/ref/MG1655.fna"
-#     out_file = tmpdir.mkdir("ref").join("test.fastq")
-#     config_dict = workflow.process_config(config_file="local_config")
-#     local = True
-#     today = day
-#     return reference_genome, fastq_file, today, config_dict, local
-
 
 @pytest.fixture()
-def local_mg1655_fastq_folder(day):
-    reference_genome = "/Users/annasintsova/git_repos/code/data/ref/MG1655.fna"
-    fastq_folder = "/Users/annasintsova/git_repos/code/data/reads/"
-    config_dict = workflow.process_config(config_file="local_config")
-    local = True
-    today = day
-    return reference_genome, fastq_folder, today, config_dict, local
+def flux_fastq_ref(day):
+
+    data_dir = "/scratch/hmobley_fluxod/annasint/code/data/"
+    test_dir = "/scratch/hmobley_fluxod/annasint/code/test_data/"
+    shutil.copytree(data_dir, test_dir)
+    ref_genome = os.path.join(test_dir, 'ref/MG1655.fna')
+    fastq_file_input = os.path.join(test_dir, "reads/SRR1051490.fastq")
+    today = dt.datetime.today().strftime("%Y-%m-%d")
+    config_dict = workflow.process_config(config_file="config")
+    local = False
+    return fastq_file_input, ref_genome, today, config_dict, local
+
+
+
+
+
+
+
+
+
+
+
 
 
 # @pytest.fixture()
