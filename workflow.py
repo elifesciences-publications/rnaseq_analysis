@@ -161,6 +161,7 @@ def run_build_index_job(reference_genome, today, config_dict, local=False, job_d
         return bt2_base, ''
     else:
         output_directory = os.path.dirname(reference_genome)
+        suffix = to_str(os.path.basename(reference_genome).split(".f")[0])
         jobid = submit_flux_job(output_directory, suffix,
                                 today, "Bowtie_index", script, job_dependency)
         return bt2_base, jobid
@@ -186,37 +187,40 @@ def run_alignment_job(fastq_file, bt2_base, config_dict, today,
     # todo test on flux
 
 # 5 Convert to sam and sort
-def run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today,
-                                          local, job_dependency=''):
+
+
+def run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today, local, job_dependency=''):
     samtools_bin = config_dict["Samtools"]["bin"]
     output_directory = os.path.dirname(sam_file)
     suffix = sam_file.split(".")[0]
     bam_file = suffix+".bam"
     sorted_bam_file = bam_file.split(".bam")[0]+"_sorted.bam"
     script = samtools.sam2bam(sam_file, bam_file, samtools_bin)
+    # todo refactor out samtools bin
     if local:
         submit_local_job(script)
         return sorted_bam_file, ''
     else:
-        jobid = submit_flux_job(output_directory, suffix, # todo make sure suffix/output_directory still work
-                                today, "Bowtie_Align", script, job_dependency)
+        suffix = os.path.basename(sam_file).split(".")[0]
+        jobid = submit_flux_job(output_directory, suffix, today, "Sam2Bam", script, job_dependency)
         return sorted_bam_file, jobid
 
 # 6 Count with bedtools
+
+
 def run_count_job_bedtools(gff, bam, config_dict, today, local, job_dependency=""):
     output_directory = os.path.dirname(bam)
+    name = os.path.basename(bam).split(".")[0]
     strand = True if config_dict["Bedtools"]["strand"] == "True" else False
+    suffix = "st" if strand else "not_st"
+    count_file = bam.split(".bam")[0] + "_counts_{}.csv".format(suffix)
     feat = config_dict["Bedtools"]["feat"]
     if local:
-        count_file = counts.count_with_bedtools_local(gff, bam, strand, feat)
+        count_file = counts.count_with_bedtools_local(gff, bam, count_file, strand, feat)
         return count_file, ''
     else:
-        suffix = "st" if strand else "not_st"
-        count_file = bam.split(".bam")[0] + "_counts_{}.csv".format(suffix)
         script = counts.count_with_bedtools_flux(gff, bam, count_file, config_dict, strand)
-        name = bam.split(".")[0]
-        jobid = submit_flux_job(output_directory, name,  # todo make sure suffix/output_directory still work
-                                today, "Count", script, job_dependency)
+        jobid = submit_flux_job(output_directory, name, today, "Count", script, job_dependency)
         return count_file, jobid
 
         #

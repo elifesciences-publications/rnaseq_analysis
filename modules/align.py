@@ -1,8 +1,7 @@
 import os
 
 
-def build_bowtie_index(reference, bt2_base,
-                       bowtie_bin):
+def build_bowtie_index(reference, bt2_base, bowtie_bin):
     script = "{}bowtie2-build {} {}\n".format(bowtie_bin, reference, bt2_base)
     return script
 

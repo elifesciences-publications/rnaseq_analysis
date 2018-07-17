@@ -25,21 +25,14 @@ def count_with_bedtools_flux(gff, bam, count_file, config_dict, strand=False):
 
     bedtools_path = config_dict["bedtools"]["bin"]
     s = " -s" if strand else ""
-    suffix = "st" if strand else "not_st"
-    count_file = bam.split(".bam")[0] + "_counts_{}.csv".format(suffix)
-    script = "{}/bedtools coverage -a {} -b SRR1051490_sorted.bam -counts{}>{}".format(bedtools_path, gff,
-                                                                                       bam, s, count_file)
+    script = "{}/bedtools coverage -a {} -b {} -counts{}>{}".format(bedtools_path, gff, bam, s, count_file)
     return script
 
 
-
-
-
-def count_with_bedtools_local(gff, bam, strand=False, feat="locus_tag"):
+def count_with_bedtools_local(gff, bam, count_file, strand=False, feat="locus_tag"):
     a = pybedtools.BedTool(gff)
     b = pybedtools.BedTool(bam)
-    suffix = "st" if strand else "not_st"
-    count_file = bam.split(".bam")[0] + "_counts_{}.csv".format(suffix)
+
     counts = a.coverage(b, counts=True, s=strand)
     with open(count_file, "w") as fo:
         for f in counts.features():

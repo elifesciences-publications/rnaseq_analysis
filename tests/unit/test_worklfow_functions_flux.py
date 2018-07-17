@@ -61,19 +61,26 @@ def test_run_index_job(flux_fastq_ref):
     bt2, jobid = workflow.run_build_index_job(ref, today, config_dict, local)
     assert type(int(jobid)) == int
 
+
 def test_run_fastqc_after_run_trim_job(flux_fastq_ref):
     fastq_file_input, _, today, config_dict, local = flux_fastq_ref
     output_file_name, jobid = workflow.run_trim_job(fastq_file_input, today, config_dict, local)
     assert type(int(jobid)) == int  # only way can figure out if the job has been submitted
     actual_out_dir, jobid2 = workflow.run_fastqc_job(output_file_name, today, config_dict, local, job_dependency=jobid)
     assert type(int(jobid2)) == int  # todo come up with a better assert statement
-    
+
+
 def test_run_align_job(flux_fastq_ref):
     fastq_file, ref, today, config_dict, local = flux_fastq_ref
     bt2, jobid = workflow.run_build_index_job(ref, today, config_dict, local)
     assert type(int(jobid)) == int
     sam_file, jobid2 = workflow.run_alignment_job(fastq_file, bt2, config_dict, today, local, jobid)
     assert type(int(jobid2)) == int
+
+def test_run_samtobam_job(flux_sam):
+    sam_file, today, config_dict, local = flux_sam
+    bam_file, jobid = workflow.run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today, local)
+    assert type(int(jobid)) == int
 
 
 

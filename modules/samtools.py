@@ -1,5 +1,5 @@
 import pysam
-import pysamstats
+#import pysamstats
 #import matplotlib.pyplot as plt
 
 

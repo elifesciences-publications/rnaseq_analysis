@@ -60,13 +60,22 @@ def flux_fastq_ref(day):
     shutil.copytree(data_dir, test_dir)
     ref_genome = os.path.join(test_dir, 'ref/MG1655.fna')
     fastq_file_input = os.path.join(test_dir, "reads/SRR1051490.fastq")
-    today = dt.datetime.today().strftime("%Y-%m-%d")
+    today = day
     config_dict = workflow.process_config(config_file="config")
     local = False
     return fastq_file_input, ref_genome, today, config_dict, local
 
 
-
+@pytest.fixture()
+def flux_sam(day):
+    data_dir = "/scratch/hmobley_fluxod/annasint/code/data/"
+    test_dir = "/scratch/hmobley_fluxod/annasint/code/test_data/"
+    shutil.copytree(data_dir, test_dir)
+    sam_file = os.path.join(test_dir, "alignments/SRR1051490.sam")
+    config_dict = workflow.process_config(config_file="config")
+    local = False
+    today = day
+    return sam_file, today, config_dict, local
 
 
 
