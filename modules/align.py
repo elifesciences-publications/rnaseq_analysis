@@ -16,6 +16,6 @@ def bowtie_align(fastq_file,
         file_name = fastq_file.split(".gz")[0]
     else:
         file_name = fastq_file
-    script += "{}bowtie2 -x {} -U {} -S {}\n".format(bowtie_bin, bt2_base,
-                                                     file_name, sam_file_name)
+    script += "{}bowtie2 -x {} {} -S {}\n".format(bowtie_bin, bt2_base,
+                                                  file_name, sam_file_name)
     return script

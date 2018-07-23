@@ -14,6 +14,7 @@ from modules.helpers import to_str
 
 
 def test_modules_trimmomatic():
+    # todo rewrite this test, make it more robust
     input_file = "/Users/annasintsova/git_repos/code/data/reads/UTI24_control.fastq"
     output_directory = "/Users/annasintsova/git_repos/code/tests/test_data"
     suffix = os.path.basename(input_file).split(".fastq")[0]

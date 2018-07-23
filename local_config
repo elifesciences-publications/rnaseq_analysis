@@ -1,6 +1,10 @@
+[sequencing]
+type = SE
+
 [Trimmomatic]
 bin = /Users/annasintsova/tools/Trimmomatic-0.36/trimmomatic-0.36.jar
 adapters = /Users/annasintsova/tools/Trimmomatic-0.36/adapters/TruSeq3-SE.fa
+headcrop = 10
 
 [FastQC]
 bin = /Users/annasintsova/tools/FastQC/fastqc

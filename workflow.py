@@ -4,7 +4,7 @@ import datetime as dt
 import os
 import subprocess
 import shlex
-
+import re
 from modules import generate_PBS_script
 from modules import process_fastq
 from modules import align
@@ -22,6 +22,19 @@ def set_up_logger():
     # todo set up logger/logging
 
     print("Set up logger!")
+
+
+def get_second(first):
+
+    pe = re.compile(r'[\W_][0-9][\W_]|[\W_]forward[\W_]')
+    matched = pe.search(first).group()
+    if "1" in matched:
+        new_matched = matched.replace("1", "2")
+    else:
+        new_matched = matched.replace("forward", "reverse")
+    second = first.replace(matched, new_matched)
+    return second
+
 
 
 def process_config(config_file="config"):
@@ -70,13 +83,14 @@ def get_args():
 
     parser = argparse.ArgumentParser("RNASeq Pipeline\n")
     parser.add_argument("-a", "--analysis", help="Analysis options", required=True)
-    parser.add_argument("-i", "--input", nargs='+', help="List of files", required=True)
-    parser.add_argument("-o", "--out_dir", help="Location of the output directory", required=False)
+    parser.add_argument("-i", "--input", help="Directory of files", required=True)
+    #parser.add_argument("-o", "--out_dir", help="Location of the output directory", required=False)
     parser.add_argument('-ref', '--reference_genome', help="Reference genome for alignments", required=False)
-    parser.add_argument('--no_index', help="Don't build bowtie2 index again", action="store_true",
-                        required=False)  # explore metavar
+    parser.add_argument('-gff', '--gff', help="Annotation", required=False)
+    # parser.add_argument('--no_index', help="Don't build bowtie2 index again", action="store_true",
+    #                     required=False)  # explore metavar
     parser.add_argument("-local", "--local", help='Run locally or on flux', action='store_true',
-                        required=False)
+                        required=True)
     return parser
 
 #######################################################################################################
@@ -100,7 +114,8 @@ step 2. run fastqc on trimmed fastq file
 
 def run_trim_job(fastq_file_input, today, config_dict, local=False, job_dependency=''):
     """
-    :param fastq_file_input: single fastq file (can be gzipped)
+    :param fastq_file_input: file name, if PE forward read, assumes reverse
+    is in the same location, with same name except 2 instead of one
     :param today: today's date
     :param config_dict: output of process_config
     :param local: whether job is running locally or on flux
@@ -108,22 +123,34 @@ def run_trim_job(fastq_file_input, today, config_dict, local=False, job_dependen
     :return: fastq_file_output path + '' if local, jobid if on flux
 
     """
+    mode = config_dict["sequencing"]["type"]
 
     assert '.fastq' in fastq_file_input
-    output_directory = os.path.dirname(fastq_file_input)
-    trimmomatic_bin = config_dict["Trimmomatic"]["bin"]
-    trimmomatic_adapters = config_dict["Trimmomatic"]["adapters"]
-    suffix = to_str(os.path.basename(fastq_file_input).split(".fastq")[0])
-    fastq_file_output = os.path.join(output_directory, suffix+"_trimmed.fastq")
+    out_dir = os.path.dirname(fastq_file_input)
+    suffix = to_str(fastq_file_input.split(".fastq")[0])
+    if mode == "PE":
+        first = os.path.basename(fastq_file_input)
+        first_out = os.path.join(out_dir,
+                                (to_str(first).split(".fastq")[0] + "_trimmed.fastq"))
+        second = os.path.join(out_dir, get_second(first))
+        second_out = os.path.join(out_dir,
+                                  to_str(second).split(".fastq")[0] + "_trimmed.fastq")
+        fastq_file_input = fastq_file_input + " " + second
+        fastq_file_output = first_out + " " + second_out
+        # todo refactor
+    else:
+
+        fastq_file_output = suffix + "_trimmed.fastq"
+
     script = process_fastq.trimmomatic(fastq_file_input,
-                                       fastq_file_output,
-                                       trimmomatic_bin,
-                                       trimmomatic_adapters)
+                                           fastq_file_output,
+                                           config_dict)
+
     if local:
         submit_local_job(script)
         return fastq_file_output, ''
     else:
-        jobid = submit_flux_job(output_directory, suffix,
+        jobid = submit_flux_job(out_dir, suffix,
                                 today, "Trimmomatic", script, job_dependency)
         return fastq_file_output, jobid
 
@@ -172,7 +199,17 @@ def run_alignment_job(fastq_file, bt2_base, config_dict, today,
                       local=False, job_dependency=''):
     output_directory = os.path.dirname(fastq_file)
     bowtie_bin = config_dict["Bowtie"]["bin"]
+    mode = config_dict["sequencing"]["type"]
+    if mode == "PE":
+        first = os.path.basename(fastq_file)
+        second = get_second(first)
+        fastq_file = "-1 {}  -2 {}".format(fastq_file,
+                                           os.path.join(output_directory, second))
+    else:
+        fastq_file = "-U {}".format(fastq_file)
+
     suffix = to_str(os.path.basename(fastq_file).split(".")[0])
+
     sam_file_name = os.path.join(output_directory, suffix + ".sam")
     script = align.bowtie_align(fastq_file,
                                 sam_file_name,
@@ -184,7 +221,7 @@ def run_alignment_job(fastq_file, bt2_base, config_dict, today,
         jobid = submit_flux_job(output_directory, suffix,
                                 today, "Bowtie_Align", script, job_dependency)
         return sam_file_name, jobid
-    # todo test on flux
+
 
 # 5 Convert to sam and sort
 
@@ -234,6 +271,54 @@ def run_count_job_bedtools(gff, bam, config_dict, today, local, job_dependency="
 
 
 #>>>>>>>>>>>>
+
+def workflow2a(ref, fastq_folder, gff, config_dict, today, local):
+
+    if local:
+        # 1. Build index
+        print("Building index...")
+        bt2, _ = run_build_index_job(ref, today, config_dict, local)
+        print("Index complete, index name: {}".format(bt2))
+        # 2. Find fastq files
+        print("Looking for fastq files")
+        fastq_files = find_files_in_a_tree(fastq_folder, file_type='fastq')
+        print("Found {} fastq files".format(len(fastq_files)))
+        # 3. Iterate over them and align
+        for file in fastq_files:
+            print("Aligning {}".format(file))
+            sam_file, _ = run_alignment_job(file, bt2, config_dict, today, local)
+            print("Sorting {}".format(sam_file))
+            sorted_bam, _ = run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today, local)
+            print("Counting {}".format(sorted_bam))
+            counts_file, _ = run_count_job_bedtools(gff, sorted_bam, config_dict, today, local)
+            print("Counting complete, count file: {}".format(counts_file))
+    else:
+        # 1. Build index
+        bt2, index_jobid = run_build_index_job(ref, today, config_dict, local)
+        # 2. Find fastq files
+        fastq_files = find_files_in_a_tree(fastq_folder, file_type='fastq')
+        mode = config_dict["sequencing"]["type"]
+
+
+        # 3. Iterate over them and align
+        for file in fastq_files:
+            if mode == "PE":
+                first = os.path.basename(file)
+                second = get_second(first)
+                if first == second:
+                    continue
+            sam_file, samfile_jobid = run_alignment_job(file, bt2, config_dict,
+                                                        today, local, index_jobid)
+            sorted_bam, sam2bam_jobid = run_sam_to_bam_conversion_and_sorting(sam_file,
+                                                                              config_dict,
+                                                                              today, local,
+                                                                              samfile_jobid)
+
+            counts_file, counts_jobid = run_count_job_bedtools(gff, sorted_bam,
+                                                                config_dict, today,
+                                                                local, sam2bam_jobid )
+
+
 
 def workflow1(files, output_directory, config_dict, today, local=False):
 
@@ -370,28 +455,14 @@ and count reads, combine reads into single files, calculate RPKMs
 
 #####################################################################################################
 
-def test_function():
-    gff = "/Users/annasintsova/git_repos/code/data/ref/MG1655.gff"
-    bam_folder = "/Users/annasintsova/git_repos/code/data/alignments"
-    config_dict = process_config("local_config")
-    today = "Tuesday"
-    local=True
-    run_counts_for_single_genome(gff, bam_folder, config_dict, today, local)
+
 
 def flow_control():
 
     today = set_up_file_handles()
     args = get_args().parse_args()
-    if os.path.isdir(args.input[0]):
-        fastq_folder = args.input[0] # todo refactor this
-        files = [os.path.join(os.path.abspath(args.input[0]), fi) for fi in os.listdir(args.input[0])]
-    elif args.input:
-        files = [os.path.abspath(fi) for fi in args.input]
-    else:
-        raise IOError
-    if args.out_dir:  # todo factor out output directory, output goes where input file is
-        output_directory = os.path.abspath(args.out_dir)
-        subprocess.call(["mkdir", "-p", output_directory])
+
+    fastq_folder = args.input
 
     if args.local:
         config_dict = process_config("local_config")
@@ -401,15 +472,15 @@ def flow_control():
     if args.analysis == 'test':
         print(workflow_test(args.analysis, args.input, args.out_dir))
 
-    elif args.analysis == 'workflow1':
-        print(workflow1(files, output_directory, config_dict, today, args.local))
-    elif args.analysis == 'align':
+    # elif args.analysis == 'workflow1':
+    #     print(workflow1(files, output_directory, config_dict, today, args.local))
 
-        genome = args.reference_genome
-        print(workflow_align(genome, fastq_folder, config_dict, today, args.local))
-    elif args.analysis == 'count':
-        genome = args.reference_genome
-        print(workflow_count(genome, fastq_folder, config_dict, today, args.local))
+    elif args.analysis == '2a':
+        assert args.reference_genome
+        assert args.gff
+        workflow2a(args.reference_genome, args.input, args.gff, config_dict, today, args.local)
+
+
 
 if __name__ == "__main__":
     flow_control()

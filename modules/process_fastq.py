@@ -29,13 +29,22 @@ def multiqc(input_directory, output_directory=''):
     return "multiqc {} --force --filename {}\n".format(input_directory, report_name)
 
 
-def trimmomatic(fastq_file_input, fastq_file_output,
-                trimmomatic_bin, trimmomatic_adapters):
+def trimmomatic(fastq_file_input, fastq_file_output, config_dict):
 
+        # if PE fastq_file_input a string of forward and reverse file names
+        # seperated by a whitespace
+        # same for the output
+
+        trimmomatic_bin = config_dict["Trimmomatic"]["bin"]
+        trimmomatic_adapters = config_dict["Trimmomatic"]["adapters"]
+        seq_type = config_dict["sequencing"]["type"]
+        headcrop = config_dict["Trimmomatic"]["headcrop"]
         return "java -jar {} " \
-                  "SE {} {} ILLUMINACLIP:{}:2:30:10:8:true" \
-                  " SLIDINGWINDOW:4:15 MINLEN:20 HEADCROP:0\n".format(trimmomatic_bin,
-                                                                      fastq_file_input,
-                                                                      fastq_file_output,
-                                                                      trimmomatic_adapters)
-# todo add more configurable params, 
+                  "{} {} {} ILLUMINACLIP:{}:2:30:10:8:true" \
+                  " SLIDINGWINDOW:4:15 MINLEN:20 HEADCROP:{}\n".format(trimmomatic_bin,
+                                                                       seq_type,
+                                                                       fastq_file_input,
+                                                                       fastq_file_output,
+                                                                       trimmomatic_adapters,
+                                                                       headcrop)
+# todo add more configurable params,

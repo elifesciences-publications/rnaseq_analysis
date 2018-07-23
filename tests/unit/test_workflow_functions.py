@@ -7,6 +7,19 @@ from modules.helpers import to_str
 
 sys.path.append('.')
 
+def test_get_second():
+    first = "first_1.fastq"
+    second = workflow.get_second(first)
+    expected_second = "first_2.fastq"
+    assert second == expected_second
+    first = "first.forward.fastq"
+    second = workflow.get_second(first)
+    expected_second = "first.reverse.fastq"
+    assert second == expected_second
+    first = "first_2.fastq"
+    second = workflow.get_second(first)
+    expected_second = "first_2.fastq"
+    assert second == expected_second
 
 def test_process_config():
     output = workflow.process_config(config_file="tests/test_data/config")
