@@ -1,7 +1,7 @@
 import os
 
 
-def generate_PBS_script(script_name, script, pmem='4gb', walltime='12:00:00'):
+def generate_PBS_script(script_name, script, pmem='4gb', walltime='24:00:00'):
 
     pbs_preamble = """
     ####  PBS preamble

@@ -77,11 +77,34 @@ def test_run_align_job(flux_fastq_ref):
     sam_file, jobid2 = workflow.run_alignment_job(fastq_file, bt2, config_dict, today, local, jobid)
     assert type(int(jobid2)) == int
 
-def test_run_samtobam_job(flux_sam):
-    sam_file, today, config_dict, local = flux_sam
+def test_run_samtobam_job(flux_sam_bam):
+    sam_file, _, _,  today, config_dict, local = flux_sam_bam
     bam_file, jobid = workflow.run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today, local)
     assert type(int(jobid)) == int
 
+
+def test_run_count_job(flux_sam_bam):
+    _,  bam_file, gff_file, today, config_dict, local = flux_sam_bam
+    counts_file, jobid = workflow.run_count_job_bedtools(gff_file, bam_file, config_dict, today, local)
+    assert type(int(jobid)) == int
+
+
+def test_worflow2a(flux_fastq_dir_ref):
+    fastq_file_dir, ref_genome, gff, today, config_dict, local = flux_fastq_dir_ref
+    jobids_dict = workflow.workflow2a(ref_genome, fastq_file_dir, gff, config_dict, today, local)
+    fastq_files = workflow.find_files_in_a_tree(fastq_file_dir)
+    for f in fastq_files:
+        for v in jobids_dict[f]:
+            assert type(int(v)) == int
+
+
+def test_workflow2a_PE(flux_fastq_dir_ref_PE):
+    fastq_file_dir, ref_genome, gff, today, config_dict, local = flux_fastq_dir_ref_PE
+    jobids_dict = workflow.workflow2a(ref_genome, fastq_file_dir, gff, config_dict, today, local)
+    for key, val in jobids_dict.items():
+        print(key)
+        for v in val:
+            assert type(int(v)) == int
 
 
 

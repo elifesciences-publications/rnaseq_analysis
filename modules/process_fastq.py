@@ -27,6 +27,7 @@ def multiqc(input_directory, output_directory=''):
                                (dt.datetime.now().strftime("%Y-%m-%d") + "_multiqc_report"))
 
     return "multiqc {} --force --filename {}\n".format(input_directory, report_name)
+    # todo multiqc is not installed in the bin
 
 
 def trimmomatic(fastq_file_input, fastq_file_output, config_dict):
@@ -39,12 +40,14 @@ def trimmomatic(fastq_file_input, fastq_file_output, config_dict):
         trimmomatic_adapters = config_dict["Trimmomatic"]["adapters"]
         seq_type = config_dict["sequencing"]["type"]
         headcrop = config_dict["Trimmomatic"]["headcrop"]
+        minlen = config_dict["Trimmomatic"]["minlen"]
         return "java -jar {} " \
-                  "{} {} {} ILLUMINACLIP:{}:2:30:10:8:true" \
-                  " SLIDINGWINDOW:4:15 MINLEN:20 HEADCROP:{}\n".format(trimmomatic_bin,
-                                                                       seq_type,
-                                                                       fastq_file_input,
-                                                                       fastq_file_output,
-                                                                       trimmomatic_adapters,
-                                                                       headcrop)
-# todo add more configurable params,
+               "{} {} {} ILLUMINACLIP:{}:2:30:10:8:true" \
+               " SLIDINGWINDOW:4:15 MINLEN:{} HEADCROP:{}\n".format(trimmomatic_bin,
+                                                                    seq_type,
+                                                                    fastq_file_input,
+                                                                    fastq_file_output,
+                                                                    trimmomatic_adapters,
+                                                                    minlen,
+                                                                    headcrop)
+

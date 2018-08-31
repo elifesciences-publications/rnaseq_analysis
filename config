@@ -8,7 +8,8 @@ type = SE
 [Trimmomatic]
 bin = /home/annasint/bin/Trimmomatic-0.36/trimmomatic-0.36.jar
 adapters = /home/annasint/bin/Trimmomatic-0.36/adapters/TruSeq3-SE.fa
-headcrop = 10
+minlen = 20
+headcrop = 0
 
 [FastQC]
 bin = /home/annasint/bin/FastQC/fastqc
@@ -21,4 +22,14 @@ bin = /home/annasint/bin/bowtie2-2.3.4-linux-x86_64/
 bin = /home/annasint/bin/samtools-1.5/bin/samtools
 
 [Bedtools]
-bin =
+bin = /home/annasint/bin/bedtools2/bin/bedtools
+strand = False
+feat = locus_tag
+
+[HTSeq]
+form = bam
+order = pos
+attr = ID
+mode = union
+stranded = no
+feature = CDS

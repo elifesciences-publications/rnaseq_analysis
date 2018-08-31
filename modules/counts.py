@@ -25,7 +25,7 @@ def count_with_bedtools_flux(gff, bam, count_file, config_dict, strand=False):
 
     bedtools_path = config_dict["bedtools"]["bin"]
     s = " -s" if strand else ""
-    script = "{}/bedtools coverage -a {} -b {} -counts{}>{}".format(bedtools_path, gff, bam, s, count_file)
+    script = "{} coverage -a {} -b {} -counts{}>{}".format(bedtools_path, gff, bam, s, count_file)
     return script
 
 
