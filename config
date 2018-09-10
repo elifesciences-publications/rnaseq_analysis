@@ -14,6 +14,8 @@ headcrop = 0
 [FastQC]
 bin = /home/annasint/bin/FastQC/fastqc
 
+[MultiQC]
+bin = multiqc
 
 [Bowtie]
 bin = /home/annasint/bin/bowtie2-2.3.4-linux-x86_64/

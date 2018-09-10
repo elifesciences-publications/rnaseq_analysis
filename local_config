@@ -2,17 +2,32 @@
 type = SE
 
 [Trimmomatic]
+
+seq_type = SE
 bin = /Users/annasintsova/tools/Trimmomatic-0.36/trimmomatic-0.36.jar
-adapters = /Users/annasintsova/tools/Trimmomatic-0.36/adapters/TruSeq3-SE.fa
-minlen = 20
-headcrop = 10
+adapters_se = /Users/annasintsova/tools/Trimmomatic-0.36/adapters/TruSeq3-SE.fa
+adapters_pe = /Users/annasintsova/tools/Trimmomatic-0.36/adapters/TruSeq3-PE-2.fa
+headcrop = 0
+crop = 0
+seed_mismatches = 2
+palindrome_clipthreshold = 30
+simple_clipthreshold = 10
+minadapterlength = 8
+keep_both_reads = true
+window_size = 4
+window_size_quality = 20
+minlength = 20
+
 
 [FastQC]
 bin = /Users/annasintsova/tools/FastQC/fastqc
 
+[MultiQC]
+bin = multiqc
 
 [Bowtie]
-bin =
+bin = bowtie2
+seq_type = SE
 
 [Samtools]
 bin = /Users/annasintsova/tools/samtools-1.7/samtools
@@ -21,10 +36,13 @@ bin = /Users/annasintsova/tools/samtools-1.7/samtools
 method = bedtools
 #other option is htseq
 
-[Bedtools]
+[bedtools]
 
-strand = True
+bin = bedtools
+# -s if stranded, otherwise empty
+strand =
 feat = locus_tag
+
 
 
 [HTSeq]
