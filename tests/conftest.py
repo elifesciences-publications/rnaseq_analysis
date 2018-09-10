@@ -5,7 +5,7 @@ import sys
 import shutil
 sys.path.append('.')
 import workflow
-
+from modules import helpers
 @pytest.fixture()
 def day():
     return dt.datetime.today().strftime("%Y-%m-%d")
@@ -19,7 +19,7 @@ def local_fastq_ref(tmpdir, day):
     r_file = tmpdir.mkdir("ref").join("genome.fna")
     shutil.copy(fastq_file, str(f_file))
     shutil.copy(reference_genome, str(r_file))
-    config_dict = workflow.process_config(config_file="local_config")
+    config_dict = helpers.process_config(config_file="local_config")
     local = True
     today = day
     yield (str(f_file), str(r_file), today, config_dict, local)
@@ -29,7 +29,7 @@ def local_sam(tmpdir, day):
     sam_file = "/Users/annasintsova/git_repos/code/data/alignments/SRR1051490.sam"
     s_file = tmpdir.mkdir("alignments").join("align.sam")
     shutil.copy(sam_file, str(s_file))
-    config_dict = workflow.process_config(config_file="local_config")
+    config_dict = helpers.process_config(config_file="local_config")
     local = True
     today = day
     yield (str(s_file), today, config_dict, local)
@@ -45,7 +45,7 @@ def local_bam(tmpdir, day):
     shutil.copy(bam_file, str(b_file))
     shutil.copy(bai_file, str(bi_file))
     shutil.copy(gff_file, str(g_file))
-    config_dict = workflow.process_config(config_file="local_config")
+    config_dict = helpers.process_config(config_file="local_config")
     local = True
     today = day
     yield (str(b_file), str(g_file), today, config_dict, local)
@@ -55,7 +55,7 @@ def local_bam(tmpdir, day):
 def local_fastq_dir_ref(tmpdir, day):
 
     data_dir = "/Users/annasintsova/git_repos/code/data/reads"
-    files = workflow.find_files_in_a_tree(data_dir, "fastq")
+    files = helpers.find_files_in_a_tree(data_dir, "fastq")
     for f in files:
         fname = os.path.basename(f)
         new_name = str(tmpdir.join(fname))
@@ -78,7 +78,7 @@ def flux_fastq_ref(tmpdir, day):
     shutil.copy(fastq_file, str(f_file))
     shutil.copy(reference_genome, str(r_file))
     today = day
-    config_dict = workflow.process_config(config_file="config")
+    config_dict = helpers.process_config(config_file="config")
     local = False
     yield (str(f_file), str(r_file), today, config_dict, local)
 
@@ -101,7 +101,7 @@ def flux_sam_bam(tmpdir, day):
     test_bam = str(tmpdir.join(bam_name))
     shutil.copy(bam, test_bam)
 
-    config_dict = workflow.process_config(config_file="config")
+    config_dict = helpers.process_config(config_file="config")
     local = False
     today = day
     return test_sam, test_bam, test_gff, today, config_dict, local
@@ -110,7 +110,7 @@ def flux_sam_bam(tmpdir, day):
 @pytest.fixture()
 def flux_fastq_dir_ref(tmpdir, day):
     data_dir = "/scratch/hmobley_fluxod/annasint/code/data/reads"
-    files = workflow.find_files_in_a_tree(data_dir, "fastq")
+    files = helpers.find_files_in_a_tree(data_dir, "fastq")
     for f in files:
         fname = os.path.basename(f)
         new_name = str(tmpdir.join(fname))
@@ -131,7 +131,7 @@ def flux_fastq_dir_ref_PE(day): # todo refactor
     gff = os.path.join(test_dir, 'ref/MG1655.gff')
     fastq_file_dir = os.path.join(test_dir, "reads")
     today = day
-    config_dict = workflow.process_config(config_file="config")
+    config_dict = helpers.process_config(config_file="config")
     local = False
     return fastq_file_dir, ref_genome, gff, today, config_dict, local
 

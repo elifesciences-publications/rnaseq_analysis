@@ -3,27 +3,28 @@ import os
 import pytest
 import sys
 import workflow
-from modules.helpers import to_str
+from modules import helpers
 
 sys.path.append('.')
 
+
 def test_get_second():
     first = "first_1.fastq"
-    second = workflow.get_second(first)
+    second = helpers.get_second(first)
     expected_second = "first_2.fastq"
     assert second == expected_second
     first = "first.forward.fastq"
-    second = workflow.get_second(first)
+    second = helpers.get_second(first)
     expected_second = "first.reverse.fastq"
     assert second == expected_second
     first = "first_2.fastq"
-    second = workflow.get_second(first)
+    second = helpers.get_second(first)
     expected_second = "first_2.fastq"
     assert second == expected_second
 
 
 def test_process_config():
-    output = workflow.process_config(config_file="tests/test_config")
+    output = helpers.process_config(config_file="tests/test_config")
     actual_output = output['bin_path']['binbase']
     expected_output = '/home/annasint/'
     assert actual_output == expected_output
@@ -36,10 +37,11 @@ def test_submit_local_job():
     assert output == expected_output
 
 
-
 def test_run_trim_job(local_fastq_ref):
     # GIVEN:
     filename, _, today, config_dict, local = local_fastq_ref
+    # Because of the test fastq file, this will only pass if Trimmomatic MINLEN is set to 20
+    # And no cropping, otherwise second assertion fails
     # WHEN:
     output_file_name = workflow.run_trim_job(filename, today, config_dict, local)[0]
     # THEN:
@@ -54,7 +56,8 @@ def test_run_fastqc_job(local_fastq_ref, tmpdir):
     actual_out_dir = workflow.run_fastqc_job(filename, today, config_dict, local)[0]
     # THEN:
     expected_filename = os.path.join(actual_out_dir,
-                                     to_str(os.path.basename(filename).split(".fastq")[0]) + "_fastqc.html")
+                                     helpers.to_str(os.path.basename(filename).split(".fastq")[0])
+                                     + "_fastqc.html")
     assert os.path.isdir(actual_out_dir)
     assert len(os.listdir(actual_out_dir)) != 0
     assert os.path.isfile(expected_filename)

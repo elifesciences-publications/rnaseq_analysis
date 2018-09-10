@@ -14,23 +14,41 @@ from modules.helpers import to_str
 
 
 def test_modules_trimmomatic():
-    # todo rewrite this test, make it more robust
-    input_file = "/Users/annasintsova/git_repos/code/data/reads/UTI24_control.fastq"
-    output_directory = "/Users/annasintsova/git_repos/code/tests/test_data"
-    suffix = os.path.basename(input_file).split(".fastq")[0]
-    fastq_file_output = os.path.join(output_directory, suffix + "_trimmed.fastq")
-    trimmomatic_bin = "/Users/annasintsova/tools/Trimmomatic-0.36/trimmomatic-0.36.jar"
-    trimmomatic_adapters = "/Users/annasintsova/tools/Trimmomatic-0.36/adapters/TruSeq3-SE.fa"
+    # SE
+    input_file = "input.fastq"
+    output_file = "output.fastq"
+    param_dict = {"seq_type": "SE",
+                  "bin": "trimmomatic-0.36.jar",
+                  "adapters_se": "TruSeq3-SE.fa",
+                  "adapters_pe": "TruSeq3-PE-2.fa",
+                  "headcrop": "20",
+                  "crop": "0",
+                  "seed_mismatches": "2",
+                  "palindrome_clipthreshold": "30",
+                  "simple_clipthreshold": "10",
+                  "minadapterlength": "8",
+                  "keep_both_reads": "true",
+                  "window_size": "4",
+                  "window_size_quality": "20",
+                  "minlength": "40"}
 
-    script = process_fastq.trimmomatic(input_file, fastq_file_output,
-                                       trimmomatic_bin, trimmomatic_adapters)
-    assert script == "java -jar /Users/annasintsova/tools/Trimmomatic-0.36/trimmomatic-0.36.jar " \
-                     "SE /Users/annasintsova/git_repos/code/data/reads/UTI24_control.fastq " \
-                     "/Users/annasintsova/git_repos/code/tests/test_data/UTI24_control_trimmed.fastq " \
-                     "ILLUMINACLIP:/Users/annasintsova/tools/" \
-                     "Trimmomatic-0.36/adapters/TruSeq3-SE.fa:2:30:10:8:true" \
-                     " SLIDINGWINDOW:4:15 MINLEN:20 HEADCROP:0\n"
+    script = process_fastq.trimmomatic(input_file, output_file, param_dict)
+    expected_script = "java -jar {bin} {seq_type} {0} {1} ILLUMINACLIP:{adapters_se}:" \
+                      "{seed_mismatches}:{palindrome_clipthreshold}:{simple_clipthreshold} " \
+                      "SLIDINGWINDOW:{window_size}:{window_size_quality} MINLEN:{minlength} " \
+                      "HEADCROP:{headcrop}\n".format(input_file, output_file, **param_dict)
 
+    assert script == expected_script
+    # PE
+    param_dict["seq_type"] = "PE"
+    script = process_fastq.trimmomatic(input_file, output_file, param_dict)
+    expected_script = "java -jar {bin} {seq_type} {0} {1} ILLUMINACLIP:{adapters_pe}:" \
+                      "{seed_mismatches}:{palindrome_clipthreshold}:{simple_clipthreshold}:" \
+                      "{minadapterlength}:{keep_both_reads} " \
+                      "SLIDINGWINDOW:{window_size}:{window_size_quality} MINLEN:{minlength} " \
+                      "HEADCROP:{headcrop}\n".format(input_file, output_file, **param_dict)
+
+    assert script == expected_script
 
 
 def test_generate_pbs():
