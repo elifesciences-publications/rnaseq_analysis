@@ -1,5 +1,7 @@
 import configparser
+import datetime as dt
 import os
+import pandas as pd
 import re
 
 
@@ -54,3 +56,54 @@ def find_files_in_a_tree(folder, file_type='fastq'):
 def set_up_logger():
     # todo set up logger/logging
     print("Set up logger!")
+
+
+def parse_flagstat(flagstat):
+
+    with open(flagstat, "r") as fh:
+        line1 = fh.readline()
+        total = int(line1.split()[0])
+        fh.readline()
+        fh.readline()
+        fh.readline()
+        line5 = fh.readline()
+        mapped = int(line5.split()[0])
+        prcnt = mapped/total
+        return total, mapped, prcnt
+
+
+def flagstat_summary(flagstat_dir):
+    today = dt.datetime.today().strftime("%Y_%m_%d")
+    flagstats = find_files_in_a_tree(flagstat_dir, file_type="flagstat.txt")
+    stats = []
+    labels = ["Name", "Total", "Mapped", "% Mapped"]
+    for fi in flagstats:
+        sample_name = os.path.basename(fi).split(".")[0]
+        total, mapped, prcnt = parse_flagstat(fi)
+        stats.append((sample_name, total, mapped, prcnt))
+    df = pd.DataFrame.from_records(stats, index="Name", columns=labels)
+    filename = os.path.join(flagstat_dir, todagiy+"_alignment_stats.csv")
+    df.to_csv(filename)
+    return filename
+
+
+def process_bedtools_count_output(count_file, count_file_out, param_dict):
+    feat = param_dict["feat"]
+    count_dict = {}
+    with open(count_file, "r") as fh:
+        for line in fh:
+            if feat not in line:
+                continue
+            else:
+                gene_info = line.split("\t")[8].split(feat+"=")[1].split(";")[0].strip()
+                counts = line.split("\t")[9].strip()
+                coverage = line.split("\t")[-1].strip()
+                count_dict[gene_info] = (counts, coverage)
+    with open(count_file_out, "w") as fo:
+        for key, val in count_dict.items():
+            fo.write("{},{},{}\n".format(key, val[0], val[1]))
+    return count_file_out
+
+if __name__ == "__main__":
+    flagstat_summary("/Users/annasintsova/git_repos/"
+                     "spatial_dynamics_of_gene_expression_in_response_to_T6SS_attack/data/bams")

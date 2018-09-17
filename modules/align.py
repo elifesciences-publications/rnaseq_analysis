@@ -15,7 +15,7 @@ def bowtie_align(fastq_file, sam_file, bt2_base, param_dict):
     if seq_type == "PE":
         first = fastq_file.split()[0]
         second = fastq_file.split()[1]
-        fastq_file = "-1 {}  -2 {}".format(first, second)
+        fastq_file = "-1 {} -2 {}".format(first, second)
 
     else:
         fastq_file = "-U {}".format(fastq_file)

@@ -13,7 +13,7 @@ def fastqc(fastq_input_file, out_dir, param_dict):
     Returns command to run FastQC on that fastq file
 
     """
-    if "fastq" not in os.path.basename(fastq_input_file):
+    if ".fastq" not in os.path.basename(fastq_input_file):
         print("Not a fastq file")
         return ''
     elif ".gz" in fastq_input_file:
@@ -28,7 +28,7 @@ def multiqc(input_directory, output_directory, param_dict):
                                (dt.datetime.now().strftime("%Y-%m-%d") + "_multiqc_report"))
 
     return "{} {} --force --filename {}\n".format(param_dict["bin"], input_directory, report_name)
-    # todo multiqc is not installed in the bin
+
 
 
 def trimmomatic(fastq_file_input, fastq_file_output, param_dict):  # todo refactor further

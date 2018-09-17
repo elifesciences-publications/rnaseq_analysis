@@ -6,6 +6,7 @@ import shutil
 sys.path.append('.')
 import workflow
 from modules import helpers
+
 @pytest.fixture()
 def day():
     return dt.datetime.today().strftime("%Y-%m-%d")
