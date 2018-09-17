@@ -21,6 +21,10 @@ def test_get_second():
     second = helpers.get_second(first)
     expected_second = "first_2.fastq"
     assert second == expected_second
+    first = "/Users/some/path/to/dir/first_1.fastq"
+    second = helpers.get_second(first)
+    expected_second = "/Users/some/path/to/dir/first_2.fastq"
+    assert second == expected_second
 
 
 def test_process_config():
@@ -39,47 +43,54 @@ def test_submit_local_job():
 
 def test_run_trim_job(local_fastq_ref):
     # GIVEN:
-    filename, _, today, config_dict, local = local_fastq_ref
-    # Because of the test fastq file, this will only pass if Trimmomatic MINLEN is set to 20
+    filename, _, config_dict, local = local_fastq_ref
+    # Because of the test fastq file, this will only pass
+    # if Trimmomatic MINLEN is set to 20
     # And no cropping, otherwise second assertion fails
+
     # WHEN:
-    output_file_name = workflow.run_trim_job(filename, today, config_dict, local)[0]
+    output_file_name = workflow.run_trim_job(filename, config_dict, local)[0]
     # THEN:
     assert os.path.isfile(output_file_name)
     assert os.path.getsize(output_file_name) != 0
+# todo test run_trim_job for PE
 
 
 def test_run_fastqc_job(local_fastq_ref, tmpdir):
     # GIVEN:
-    filename, _, today, config_dict, local = local_fastq_ref
+    filename, _, config_dict, local = local_fastq_ref
+    sample_id = helpers.to_str(os.path.basename(filename).split(".fastq")[0])
     # WHEN:
-    actual_out_dir = workflow.run_fastqc_job(filename, today, config_dict, local)[0]
+    actual_out_dir = workflow.run_fastqc_job(filename, config_dict, local)[0]
     # THEN:
-    expected_filename = os.path.join(actual_out_dir,
-                                     helpers.to_str(os.path.basename(filename).split(".fastq")[0])
-                                     + "_fastqc.html")
+    expected_filename = os.path.join(actual_out_dir, sample_id + "_fastqc.html")
     assert os.path.isdir(actual_out_dir)
     assert len(os.listdir(actual_out_dir)) != 0
     assert os.path.isfile(expected_filename)
 
+# todo test run_fastqc_job for PE
+
+# todo test multiqc
+
 
 def test_run_build_index_job(local_fastq_ref):
-    _, reference_genome, today, config_dict, local = local_fastq_ref
-    bt2, _ = workflow.run_build_index_job(reference_genome,
-                                          today, config_dict, local)
-    assert os.path.isfile(bt2 + ".1.bt2")
-    assert os.path.isfile(bt2 + ".4.bt2")
+    _, ref_genome, config_dict, local = local_fastq_ref
+    index_path, _ = workflow.run_build_index_job(ref_genome, config_dict, local)
+    assert os.path.isfile(index_path + ".1.bt2")
+    assert os.path.isfile(index_path + ".4.bt2")
 
 
-def test_run_align_job_local(local_fastq_ref):
-    fastq_file, reference_genome, today, config_dict, local = local_fastq_ref
-    bt2, _ = workflow.run_build_index_job(reference_genome, today, config_dict, local)
-    sam_file, _ = workflow.run_alignment_job(fastq_file, bt2, config_dict, today, local)
+def test_run_align_job(local_fastq_ref):
+    fastq_file, ref_genome, config_dict, local = local_fastq_ref
+    bt2, _ = workflow.run_build_index_job(ref_genome, config_dict, local)
+    sam_file, _ = workflow.run_alignment_job(fastq_file, bt2, config_dict, local)
     assert os.path.isfile(sam_file)
     assert os.path.getsize(sam_file) != 0
 
+# todo test run_align for PE samples
 
-def test_run_sam_to_bam_conversion_and_sorting_local(local_sam):
+
+def test_run_sam_to_bam_conversion_and_sorting(local_sam):
     sam_file, today, config_dict, local = local_sam
     bam_file, _ = workflow.run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today, local)
     assert os.path.isfile(bam_file)

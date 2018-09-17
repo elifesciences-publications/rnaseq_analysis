@@ -1,6 +1,7 @@
 import argparse
 import datetime as dt
 import os
+import pandas as pd
 import subprocess
 import shlex
 import shutil
@@ -24,7 +25,6 @@ def get_args():
 
 
 def submit_local_job(script):
-
     multiple_scripts = script.strip().split("\n")
     out = []
     for scr in multiple_scripts:
@@ -35,13 +35,21 @@ def submit_local_job(script):
     return out
 
 
-def submit_flux_job(output_directory, suffix, today, job_name, script, job_dependency=''):
+def submit_flux_job(out_dir, sample_id, job_name, script, job_depend=''):
+    """
 
-    pbs_name = os.path.join(output_directory, today+"_{}_{}.pbs".format(suffix, job_name))
+    :param out_dir: where to save .pbs script
+    :param sample_id: file_id
+    :param job_name: what is being done to that file_id
+    :param script:
+    :param job_depend:
+    :return:
+    """
+    today = dt.datetime.today().strftime("%Y-%m-%d")
+    pbs_name = os.path.join(out_dir, "{}_{}_{}.pbs".format(today, sample_id, job_name))
     generate_PBS_script.generate_PBS_script(pbs_name, script)
-    if job_dependency:
-        output = subprocess.Popen(["qsub", "-W",
-                                  "depend=afterok:{}".format(job_dependency),
+    if job_depend:
+        output = subprocess.Popen(["qsub", "-W", "depend=afterok:{}".format(job_depend),
                                    pbs_name], stdout=subprocess.PIPE)
     else:
         output = subprocess.Popen(["qsub", pbs_name], stdout=subprocess.PIPE)
@@ -52,106 +60,101 @@ def submit_flux_job(output_directory, suffix, today, job_name, script, job_depen
 """Single File Jobs"""
 
 
-def run_trim_job(fastq_file_input, today, config_dict, local=False, job_dependency=''):
+def run_trim_job(fastq_file, config_dict, local=False, job_depend=''):
     """
-    :param fastq_file_input: file name, if PE forward read, assumes reverse
+    :param fastq_file: file name, if PE forward read, assumes reverse
     is in the same location, with same name except 2 instead of one
-    :param today: today's date
     :param config_dict: output of process_config
     :param local: whether job is running locally or on flux
-    :param job_dependency: if running on flux, whether has to wait for other jobs to finish first
+    :param job_depend: if running on flux, whether has to wait for other jobs to finish first
     :return: fastq_file_output path + '' if local, jobid if on flux
 
     """
-    assert '.fastq' in fastq_file_input
+    assert '.fastq' in fastq_file
     mode = config_dict["sequencing"]["type"]
     param_dict = config_dict["Trimmomatic"]
-    out_dir = os.path.dirname(fastq_file_input)
-
-    suffix = helpers.to_str(fastq_file_input.split(".fastq")[0])
+    out_dir = os.path.dirname(fastq_file)
+    sample_path = helpers.to_str(fastq_file.split(".fastq")[0])
+    sample_id = os.path.basename(fastq_file).split(".")[0]
     if mode == "PE":
         # Only handles certain naming formats (see helpers.get_second)
-        first = os.path.basename(fastq_file_input)
-        first_out = os.path.join(out_dir, (suffix + "_trimmed.fastq"))
+        first = os.path.basename(fastq_file)
+        first_out = os.path.join(out_dir, (sample_path + "_trimmed.fastq"))
         second = os.path.join(out_dir, helpers.get_second(first))
-        suffix2 = helpers.to_str(second).split(".fastq")[0]
-        second_out = os.path.join(out_dir, (suffix2 + "_trimmed.fastq"))
-        fastq_file_input = fastq_file_input + " " + second
-        fastq_file_output = first_out + " " + second_out
+        sample_path2 = helpers.to_str(second).split(".fastq")[0]
+        second_out = os.path.join(out_dir, (sample_path2 + "_trimmed.fastq"))
+        fastq_file = fastq_file + " " + second
+        fastq_file_trimmed = first_out + " " + second_out
     else:
-        fastq_file_output = suffix + "_trimmed.fastq"
-
-    script = process_fastq.trimmomatic(fastq_file_input, fastq_file_output, param_dict)
+        fastq_file_trimmed = sample_path + "_trimmed.fastq"
+    script = process_fastq.trimmomatic(fastq_file, fastq_file_trimmed, param_dict)
     if local:
         submit_local_job(script)
-        return fastq_file_output, ''
+        return fastq_file_trimmed, ''
     else:
-        jobid = submit_flux_job(out_dir, os.path.basename(fastq_file_input).split(".")[0],
-                                today, "Trimmomatic", script, job_dependency)
-        return fastq_file_output, jobid
+        jobid = submit_flux_job(out_dir, sample_id, "trimmomatic", script, job_depend)
+        return fastq_file_trimmed, jobid
 
 
-def run_fastqc_job(fastq_file, today, config_dict, local=False, job_dependency=''):  # tested locally
-
+def run_fastqc_job(fastq_file, config_dict, local=False, job_dependency=''):
     param_dict = config_dict["FastQC"]
-    file_prefix = os.path.basename(fastq_file).split(".")[0]
+    sample_id = os.path.basename(fastq_file).split(".")[0]
     out_dir = os.path.dirname(fastq_file)
-    fastqc_out_dir = os.path.join(out_dir, "{}_FastQC_results".format(file_prefix))
+    fastqc_out_dir = os.path.join(out_dir, "{}_FastQC_results".format(sample_id))
     subprocess.call(["mkdir", "-p", fastqc_out_dir])
     script = process_fastq.fastqc(fastq_file, fastqc_out_dir, param_dict)
     if local:
         submit_local_job(script)
         return fastqc_out_dir, ''
     else:
-        jobid = submit_flux_job(out_dir, file_prefix, today, "FastQC", script, job_dependency)
+        jobid = submit_flux_job(out_dir, sample_id,  "FastQC", script, job_dependency)
         return fastqc_out_dir, jobid
 
 
-def run_multiqc_job(fastqc_dir, today, config_dict, local, job_dependency=''):
+def run_multiqc_job(fastqc_dir, config_dict, local, job_depend=''):
     # todo test
     param_dict = config_dict["MultiQC"]
-    suffix = today + "multiqc_report"
+    report_name = dt.datetime.today().strftime("%Y-%m-%d") + "multiqc_report"
     script = process_fastq.multiqc(fastqc_dir, fastqc_dir, param_dict)
     if local:
         submit_local_job(script)
         return fastqc_dir, ""
     else:
-        jobid = submit_flux_job(fastqc_dir, suffix, today, "Mqc", script, job_dependency)
+        jobid = submit_flux_job(fastqc_dir, report_name,  "Mqc", script, job_depend)
         return fastqc_dir, jobid
 
 
-def run_build_index_job(reference_genome, today, config_dict, local=False, job_dependency=''):
+def run_build_index_job(ref_genome, config_dict, local=False, job_depend=''):
     param_dict = config_dict["Bowtie"]
-    suffix = helpers.to_str(reference_genome.split(".")[0])
-    bt2_base = suffix + '_index'
-    script = align.build_bowtie_index(reference_genome, bt2_base, param_dict)
+    ref_path = helpers.to_str(ref_genome.split(".")[0])
+    ref_id = os.path.basename(ref_genome).split(".")[0]
+    index_path = ref_path + '_index'
+    script = align.build_bowtie_index(ref_genome, index_path, param_dict)
     if local:
         submit_local_job(script)
-        return bt2_base, ''
+        return index_path, ''
     else:
-        out_dir = os.path.dirname(reference_genome)
-        jobid = submit_flux_job(out_dir, suffix, today, "bowtie_index", script, job_dependency)
-        return bt2_base, jobid
+        out_dir = os.path.dirname(ref_genome)
+        jobid = submit_flux_job(out_dir, ref_id, "bowtie_index", script, job_depend)
+        return index_path, jobid
     # todo test index job on flux
 
 
-def run_alignment_job(fastq_file, bt2_base, config_dict, today, local, job_dependency=''):
+def run_alignment_job(fastq_file, index_path, config_dict, local, job_depend=''):
     out_dir = os.path.dirname(fastq_file)
-    suffix = helpers.to_str(os.path.basename(fastq_file).split(".")[0])
+    sample_id = helpers.to_str(os.path.basename(fastq_file).split(".")[0])
     param_dict = config_dict["Bowtie"]
     seq_type = config_dict["sequencing"]["type"]
     if seq_type == "PE":
-        first = os.path.basename(fastq_file)
-        second = helpers.get_second(first)
-        fastq_file = fastq_file + " " + os.path.join(out_dir, second)
-    sam_file = os.path.join(out_dir, suffix + ".sam")
-    script = align.bowtie_align(fastq_file, sam_file, bt2_base, param_dict)
-
+        second = helpers.get_second(fastq_file)
+        fastq_file = fastq_file + " " + second
+    sam_file = os.path.join(out_dir, sample_id + ".sam")
+    script = align.bowtie_align(fastq_file, sam_file, index_path, param_dict)
     if local:
         submit_local_job(script)
         return sam_file, ''
     else:
-        jobid = submit_flux_job(out_dir, suffix, today, "bowtie_align", script, job_dependency)
+        jobid = submit_flux_job(out_dir, sample_id, "bowtie_align", script, job_depend)
         return sam_file, jobid
 
 
@@ -167,8 +170,13 @@ def run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today, local, j
         return sorted_bam_file, ''
     else:
         suffix = os.path.basename(sam_file).split(".")[0]
-        jobid = submit_flux_job(out_dir, suffix, today, "sam2bam", script, job_dependency)
+        jobid = submit_flux_job(out_dir, suffix, "sam2bam", script, job_dependency)
         return sorted_bam_file, jobid
+
+
+def run_bam_stats(bam_file):
+    total, mapped, pnt_mapped = helpers.get_bam_stats(bam_file)
+    return total, mapped, pnt_mapped
 
 
 def run_count_job_bedtools(gff, bam, config_dict, today, local, job_dependency=""):
@@ -179,15 +187,15 @@ def run_count_job_bedtools(gff, bam, config_dict, today, local, job_dependency="
     suffix = "st" if strand else "not_st"
     count_file = bam.split(".bam")[0] + "_counts_{}.csv".format(suffix)
     if local:
-        script = counts.count_with_bedtools(gff, bam, count_file, param_dict)
+        script = counts.count_with_bedtools(gff, bam, param_dict)
         script = script.split(">")[0]
         result = submit_local_job(script)[0]
         with open(count_file, "w") as fo:
             fo.write(result)
         return count_file, ''
     else:
-        script = counts.count_with_bedtools(gff, bam, count_file, param_dict)
-        jobid = submit_flux_job(output_directory, prefix, today, "Count", script, job_dependency)
+        script = counts.count_with_bedtools(gff, bam, param_dict)
+        jobid = submit_flux_job(output_directory, prefix, "Count", script, job_dependency)
         return count_file, jobid
 
 
@@ -197,19 +205,21 @@ def run_edit_count_job_bedtools(count_file, config_dict, today, local, job_depen
     out_dir = os.path.dirname(count_file)
     prefix = os.path.basename(count_file).split(".")[0]
     if local:
-        counts.process_bedtools_count_output(count_file, count_file_edited, param_dict)
+        helpers.process_bedtools_count_output(count_file, count_file_edited, param_dict)
         return count_file_edited, ""
     else:
         # todo make this less hacky
         # todo test
         config_file = "/Users/annasintsova/git_repos/code/local_config"
         script = "python modules/counts.py {} {} {}".format(count_file, count_file_edited, config_file)
-        jobid = submit_flux_job(out_dir, prefix, today, "count_edit", script, job_dependency)
+        jobid = submit_flux_job(out_dir, prefix, "count_edit", script, job_dependency)
         return count_file_edited, jobid
 
 
-# def run_count_job_htseq_count(gff, bam, config_dict, today, local, job_dependency=""):
-#     print("Make it work!")
+
+def run_count_job_htseq_count(gff, bam, config_dict, today, local, job_dependency=""):
+    param_dict = config_dict["HTSeq"]
+    script = counts.count_reads(bam, gff, param_dict)
 
 
 def clean_up_after_run(fastq_dir, out_dir):
@@ -306,6 +316,25 @@ def workflow_align(fastq_dir, ref, gff, config_dict, today, local):
         return job_ids
 
 
+def workflow_bam_stats(bam_dir, today, local, job_dependency=""):
+    if local:
+        bam_files = helpers.find_files_in_a_tree(bam_dir, file_type="bam")
+        stats = []
+        labels = ["Name", "Total", "Mapped", "% Mapped"]
+        for bm in bam_files:
+            sample_name = os.path.basename(bm).split(".")[0]
+            total, mapped, pcnt_mapped = run_bam_stats(bm)
+            stats.append((sample_name, total, mapped, pcnt_mapped))
+        df = pd.DataFrame.from_records(stats, index="Name", columns=labels)
+        filename = os.path.join(bam_dir, today+"_alignment_stats.csv")
+        df.to_csv(filename)
+    else:
+        script = "python workflow.py -a bam-stats -i {} -local".format(bam_dir)
+        jobid = submit_flux_job(bam_dir, "alignment_stats",  "alignment_stats", script, job_dependency)
+        return jobid
+
+
+
 # def workflow_align(genome, fastq_folder, config_dict, today, local):
 #
 #     run_alignments_for_single_genome(genome, fastq_folder, config_dict, today, local)
@@ -360,7 +389,6 @@ def flow_control():
         config_dict = helpers.process_config("local_config")
     else:
         config_dict = helpers.process_config("config")
-
     if args.analysis == 'test':
         print(workflow_test(args.analysis, args.input, args.out_dir))
     elif args.analysis == 'qc':
@@ -371,6 +399,8 @@ def flow_control():
         print(workflow_trim_and_qc(args.input, config_dict, today, args.local))
     elif args.analysis == 'align':  # tested locally
         print(workflow_align(args.input, args.reference_genome, args.gff, config_dict, today, args.local))
+    elif args.analysis == 'bam-stats':
+        print(workflow_bam_stats(args.input, today, args.local))
     elif args.analysis == 'count':  # todo test
         assert args.gff
         workflow_count(args.gff, args.input, config_dict, today, args.local)

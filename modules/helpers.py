@@ -104,6 +104,15 @@ def process_bedtools_count_output(count_file, count_file_out, param_dict):
             fo.write("{},{},{}\n".format(key, val[0], val[1]))
     return count_file_out
 
+
+def get_bam_stats(bam):
+    mybam = pysam.AlignmentFile(bam)
+    mapped = mybam.mapped
+    total = mybam.mapped + mybam.unmapped
+    pnt_mapped = mapped/total*100
+    return total, mapped, round(pnt_mapped, 2)
+
+
 if __name__ == "__main__":
     flagstat_summary("/Users/annasintsova/git_repos/"
                      "spatial_dynamics_of_gene_expression_in_response_to_T6SS_attack/data/bams")
