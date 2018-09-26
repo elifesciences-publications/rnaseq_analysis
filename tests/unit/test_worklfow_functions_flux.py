@@ -44,15 +44,15 @@ def test_submit_flux_job_two_jobs():
 # this will test both on flux, plus if job dependency works properly
 
 
-def test_run_fastqc_job(flux_fastq_ref):
+def test_run_fastqc_job(flux_fastq_ref):  # P
     fastq_file_input, _, today, config_dict, local = flux_fastq_ref
-    output_file_name, jobid = workflow.run_fastqc_job(fastq_file_input, today, config_dict, local)
-    assert type(int(jobid)) == int  # only way can figure out if the job has been submitted
+    _, jobid = workflow.run_fastqc_job(fastq_file_input, config_dict, local)
+    assert type(int(jobid)) == int  # Only way can figure out if the job has been submitted
 
 
-def test_run_trim_job(flux_fastq_ref):
+def test_run_trim_job(flux_fastq_ref):  # P
     fastq_file_input, _,  today, config_dict, local = flux_fastq_ref
-    output_file_name, jobid = workflow.run_trim_job(fastq_file_input, today, config_dict, local)
+    _, jobid = workflow.run_trim_job(fastq_file_input, config_dict, local)
     assert type(int(jobid)) == int
 
 
@@ -62,12 +62,23 @@ def test_run_index_job(flux_fastq_ref):
     assert type(int(jobid)) == int
 
 
-def test_run_fastqc_after_run_trim_job(flux_fastq_ref):
-    fastq_file_input, _, today, config_dict, local = flux_fastq_ref
-    output_file_name, jobid = workflow.run_trim_job(fastq_file_input, today, config_dict, local)
-    assert type(int(jobid)) == int  # only way can figure out if the job has been submitted
-    actual_out_dir, jobid2 = workflow.run_fastqc_job(output_file_name, today, config_dict, local, job_dependency=jobid)
-    assert type(int(jobid2)) == int  # todo come up with a better assert statement
+def test_workflow_trim_and_qc(flux_fastq_dir):  # P
+    fastq_dir, config_dict, local = flux_fastq_dir
+    exit_string = workflow.workflow_trim_and_qc(fastq_dir, config_dict,  local)
+    assert exit_string == "Jobs for trim and qc submitted"
+    # todo refactor
+
+
+def test_run_mqc_job(flux_mqc_dir):  # P
+    mqc_dir, config_dict, local = flux_mqc_dir
+    _, jobid = workflow.run_multiqc_job(mqc_dir, config_dict, local)
+    assert type(int(jobid)) == int
+
+
+def test_workflow_mqc(flux_mqc_dir):  # P
+    mqc_dir, config_dict, local = flux_mqc_dir
+    exit_string = workflow.workflow_mqc(mqc_dir, config_dict, local)
+    assert exit_string == "Multiqc jobs submitted!"
 
 
 def test_run_align_job(flux_fastq_ref):

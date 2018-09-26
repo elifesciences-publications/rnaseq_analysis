@@ -22,8 +22,7 @@ def local_fastq_ref(tmpdir, day):
     shutil.copy(reference_genome, str(r_file))
     config_dict = helpers.process_config(config_file="local_config")
     local = True
-    today = day
-    yield (str(f_file), str(r_file), today, config_dict, local)
+    yield (str(f_file), str(r_file), config_dict, local)
 
 @pytest.fixture()
 def local_sam(tmpdir, day):
@@ -82,6 +81,27 @@ def flux_fastq_ref(tmpdir, day):
     config_dict = helpers.process_config(config_file="config")
     local = False
     yield (str(f_file), str(r_file), today, config_dict, local)
+
+
+@pytest.fixture()
+def flux_fastq_dir(tmpdir, day):
+    data_dir = "/scratch/hmobley_fluxod/annasint/code/data/reads/"
+    f_dir = "/scratch/hmobley_fluxod/annasint/code/test_data"
+    shutil.copytree(data_dir, f_dir)
+    config_dict = helpers.process_config(config_file="config")
+    local = False
+    yield (f_dir, config_dict, local)
+
+
+@pytest.fixture()
+def flux_mqc_dir():
+    data_dir = "/scratch/hmobley_fluxod/annasint/code/data/mqc_dir/"
+    mqc_dir = "/scratch/hmobley_fluxod/annasint/code/test_data"
+    shutil.copytree(data_dir, mqc_dir)
+    config_dict = helpers.process_config(config_file="config")
+    local = False
+    yield (mqc_dir, config_dict, local)
+
 
 @pytest.fixture()
 def flux_sam_bam(tmpdir, day):

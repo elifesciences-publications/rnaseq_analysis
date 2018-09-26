@@ -43,12 +43,12 @@ def get_second(first):
     return second
 
 
-def find_files_in_a_tree(folder, file_type='fastq'):
+def find_files_in_a_tree(folder, file_type='.fastq'):
 
     f_files = []
     for root, dirs, files in os.walk(folder, topdown=False):
         for name in files:
-            if name.endswith(file_type):
+            if file_type in name:
                 f_files.append(os.path.join(root, name))
     return f_files
 

@@ -246,28 +246,28 @@ def workflow_test(analysis, input_folder, output_folder):
     return analysis, input_folder, output_folder
 
 
-def workflow_qc(fastq_dir, config_dict, today, local=False):
+def workflow_qc(fastq_dir, config_dict, local=False):
     files = helpers.find_files_in_a_tree(fastq_dir, file_type='fastq')
     for file in files:
-        run_fastqc_job(file, today, config_dict, local)
+        run_fastqc_job(file, config_dict, local)
     return "Fastqc jobs submitted!"
 
 
-def workflow_mqc(fastqc_dir, today, config_dict, local):
-    run_multiqc_job(fastqc_dir, today, config_dict, local)
+def workflow_mqc(fastqc_dir, config_dict, local):
+    run_multiqc_job(fastqc_dir, config_dict, local)
     return "Multiqc jobs submitted!"
 
 # todo make sure can handle .gz files
 
 
-def workflow_trim_and_qc(fastq_dir, config_dict, today, local=False):
+def workflow_trim_and_qc(fastq_dir, config_dict, local=False):
 
-    files = helpers.find_files_in_a_tree(fastq_dir, file_type='fastq')
+    files = helpers.find_files_in_a_tree(fastq_dir, file_type='.fastq')
     for file in files:
         # Run trim job
-        trimmed_fastq_file, trim_jobid = run_trim_job(file, today, config_dict, local)
+        trimmed_fastq_file, trim_jobid = run_trim_job(file, config_dict, local)
         # Run fastqc job
-        run_fastqc_job(trimmed_fastq_file, today, config_dict, local, trim_jobid)
+        run_fastqc_job(trimmed_fastq_file, config_dict, local, trim_jobid)
     return "Jobs for trim and qc submitted"  # todo test workflow on flux
 
 
@@ -392,11 +392,11 @@ def flow_control():
     if args.analysis == 'test':
         print(workflow_test(args.analysis, args.input, args.out_dir))
     elif args.analysis == 'qc':
-        print(workflow_qc(args.input, config_dict, today, args.local))
+        print(workflow_qc(args.input, config_dict, args.local))
     elif args.analysis == 'mqc':
-        print(workflow_mqc(args.input, today, config_dict, args.local))
+        print(workflow_mqc(args.input, config_dict, args.local))
     elif args.analysis == 'trim':
-        print(workflow_trim_and_qc(args.input, config_dict, today, args.local))
+        print(workflow_trim_and_qc(args.input, config_dict, args.local))
     elif args.analysis == 'align':  # tested locally
         print(workflow_align(args.input, args.reference_genome, args.gff, config_dict, today, args.local))
     elif args.analysis == 'bam-stats':

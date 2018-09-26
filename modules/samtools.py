@@ -10,12 +10,6 @@ def sam2bam(sam_file, bam_file,  param_dict):  # removed flagstat option
     return script
 
 
-def get_bam_stats(bam):
-    mybam = pysam.AlignmentFile(bam)
-    mapped = mybam.mapped
-    total = mybam.mapped + mybam.unmapped
-    pnt_mapped = mapped/total*100
-    return total, mapped, round(pnt_mapped, 2)
 
 
 # def flagstat(sam_file, param_dict):
