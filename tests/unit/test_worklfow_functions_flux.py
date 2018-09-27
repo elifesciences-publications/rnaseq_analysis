@@ -81,12 +81,35 @@ def test_workflow_mqc(flux_mqc_dir):  # P
     assert exit_string == "Multiqc jobs submitted!"
 
 
-def test_run_align_job(flux_fastq_ref):
-    fastq_file, ref, today, config_dict, local = flux_fastq_ref
-    bt2, jobid = workflow.run_build_index_job(ref, today, config_dict, local)
+def test_run_build_index_and_align_job(flux_fastq_ref):
+    fastq_file, ref, config_dict, local = flux_fastq_ref
+    bt2, jobid = workflow.run_build_index_job(ref, config_dict, local)
     assert type(int(jobid)) == int
-    sam_file, jobid2 = workflow.run_alignment_job(fastq_file, bt2, config_dict, today, local, jobid)
+    sam_file, jobid2 = workflow.run_alignment_job(fastq_file, bt2, config_dict, local, jobid)
     assert type(int(jobid2)) == int
+
+
+def test_run_count_job_bedtools(flux_sam_bam, flux_bam_keep_output):  # P
+    # _, test_bam, test_gff, config_dict, local = flux_sam_bam
+    # _, jobid = workflow.run_count_job_bedtools(test_gff, test_bam, config_dict, local)
+    # assert type(int(jobid)) == int
+
+    test_bam, test_gff, config_dict, local = flux_bam_keep_output
+    _, jobid = workflow.run_count_job_bedtools(test_gff, test_bam, config_dict, local)
+    assert type(int(jobid)) == int
+
+
+def test_run_count_job_htseq_count(flux_bam_keep_output):  # P
+    test_bam, test_gff, config_dict, local = flux_bam_keep_output
+    _, jobid = workflow.run_count_job_htseq_count(test_gff, test_bam, config_dict, local)
+    assert type(int(jobid)) == int
+
+
+def test_run_edit_count_job_bedtools(count_keep_output):  # P
+    test_cnts, config_dict, local = count_keep_output
+    _, jobid = workflow.run_edit_count_job_bedtools(test_cnts, config_dict, local)
+    assert type(int(jobid)) == int
+
 
 def test_run_samtobam_job(flux_sam_bam):
     sam_file, _, _,  today, config_dict, local = flux_sam_bam
@@ -94,10 +117,10 @@ def test_run_samtobam_job(flux_sam_bam):
     assert type(int(jobid)) == int
 
 
-def test_run_count_job(flux_sam_bam):
-    _,  bam_file, gff_file, today, config_dict, local = flux_sam_bam
-    counts_file, jobid = workflow.run_count_job_bedtools(gff_file, bam_file, config_dict, today, local)
-    assert type(int(jobid)) == int
+# def test_run_count_job(flux_sam_bam):
+#     _,  bam_file, gff_file, today, config_dict, local = flux_sam_bam
+#     counts_file, jobid = workflow.run_count_job_bedtools(gff_file, bam_file, config_dict, today, local)
+#     assert type(int(jobid)) == int
 
 
 def test_worflow2a(flux_fastq_dir_ref):

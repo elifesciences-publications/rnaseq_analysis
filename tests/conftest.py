@@ -70,21 +70,24 @@ def local_fastq_dir_ref(tmpdir, day):
 """FLUX"""
 
 @pytest.fixture()
-def flux_fastq_ref(tmpdir, day):
+def flux_fastq_ref(tmpdir):
     fastq_file = "/scratch/hmobley_fluxod/annasint/code/data/reads/SRR1051490.fastq"
     reference_genome = "/scratch/hmobley_fluxod/annasint/code/data/ref/MG1655.fna"
-    f_file = tmpdir.join("test.fastq")
-    r_file = tmpdir.mkdir("ref").join("genome.fna")
-    shutil.copy(fastq_file, str(f_file))
-    shutil.copy(reference_genome, str(r_file))
-    today = day
+    #f_file = tmpdir.join("test.fastq")
+    #r_file = tmpdir.mkdir("ref").join("genome.fna")
+    test_dir = "/scratch/hmobley_fluxod/annasint/code/test_data"
+    os.mkdir(test_dir)
+    f_file = os.path.join(test_dir, "test.fastq")
+    r_file = os.path.join(test_dir, "genome.fna")
+    shutil.copy(fastq_file, f_file)
+    shutil.copy(reference_genome, r_file)
     config_dict = helpers.process_config(config_file="config")
     local = False
-    yield (str(f_file), str(r_file), today, config_dict, local)
+    yield (f_file, r_file, config_dict, local)
 
 
 @pytest.fixture()
-def flux_fastq_dir(tmpdir, day):
+def flux_fastq_dir():
     data_dir = "/scratch/hmobley_fluxod/annasint/code/data/reads/"
     f_dir = "/scratch/hmobley_fluxod/annasint/code/test_data"
     shutil.copytree(data_dir, f_dir)
@@ -124,8 +127,27 @@ def flux_sam_bam(tmpdir, day):
 
     config_dict = helpers.process_config(config_file="config")
     local = False
-    today = day
-    return test_sam, test_bam, test_gff, today, config_dict, local
+    return test_sam, test_bam, test_gff, config_dict, local
+
+@pytest.fixture()
+def flux_bam_keep_output():
+    data_dir = "/scratch/hmobley_fluxod/annasint/code/data/"
+    test_dir = "/scratch/hmobley_fluxod/annasint/code/test_data"
+    os.mkdir(test_dir)
+
+    gff = os.path.join(data_dir, "ref/MG1655.gff")
+    test_gff = os.path.join(test_dir, "MG1655.gff")
+    shutil.copy(gff, test_gff)
+
+    bam = os.path.join(data_dir, "alignments/SRR1051490_sorted.bam")
+    test_bam = os.path.join(test_dir, "SRR1051490_sorted.bam")
+    shutil.copy(bam, test_bam)
+    bai = os.path.join(data_dir, "alignments/SRR1051490_sorted.bam.bai")
+    test_bai = os.path.join(test_dir, "SRR1051490_sorted.bam.bai")
+    shutil.copy(bai, test_bai)
+    config_dict = helpers.process_config(config_file="config")
+    local = False
+    return test_bam, test_gff, config_dict, local
 
 
 @pytest.fixture()
@@ -141,6 +163,20 @@ def flux_fastq_dir_ref(tmpdir, day):
     test_ref = str(tmpdir.join(ref_name))
     shutil.copy(ref, test_ref)
     return str(tmpdir), test_ref, day
+
+
+@pytest.fixture()
+def count_keep_output():
+    data_dir = "/scratch/hmobley_fluxod/annasint/code/data/"
+    test_dir = "/scratch/hmobley_fluxod/annasint/code/test_data"
+    os.mkdir(test_dir)
+
+    cnts = os.path.join(data_dir, "counts/SRR1051490_sorted_counts_st.csv")
+    test_cnts = os.path.join(test_dir, "SRR1051490_sorted_counts_st.csv")
+    shutil.copy(cnts, test_cnts)
+    config_dict = helpers.process_config(config_file="config")
+    local = False
+    return test_cnts, config_dict, local
 
 
 @pytest.fixture()

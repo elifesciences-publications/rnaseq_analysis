@@ -7,9 +7,19 @@ type = SE
 
 [Trimmomatic]
 bin = /home/annasint/bin/Trimmomatic-0.36/trimmomatic-0.36.jar
-adapters = /home/annasint/bin/Trimmomatic-0.36/adapters/TruSeq3-SE.fa
-minlen = 20
-headcrop = 0
+seq_type = SE
+adapters_se = /home/annasint/bin/Trimmomatic-0.36/adapters/TruSeq3-SE.fa
+adapters_pe = /home/annasint/bin/Trimmomatic-0.36/adapters/TruSeq3-PE-2.fa
+headcrop = 10
+crop = 0
+seed_mismatches = 2
+palindrome_clipthreshold = 30
+simple_clipthreshold = 10
+minadapterlength = 8
+keep_both_reads = true
+window_size = 4
+window_size_quality = 20
+minlength = 40
 
 [FastQC]
 bin = /home/annasint/bin/FastQC/fastqc
@@ -19,16 +29,19 @@ bin = multiqc
 
 [Bowtie]
 bin = /home/annasint/bin/bowtie2-2.3.4-linux-x86_64/
+seq_type = SE
 
 [Samtools]
 bin = /home/annasint/bin/samtools-1.5/bin/samtools
 
-[Bedtools]
+[bedtools]
 bin = /home/annasint/bin/bedtools2/bin/bedtools
-strand = False
+# -s if stranded
+strand =
 feat = locus_tag
 
 [HTSeq]
+bin = htseq-count
 form = bam
 order = pos
 attr = ID

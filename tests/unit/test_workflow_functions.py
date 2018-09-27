@@ -97,11 +97,11 @@ def test_run_sam_to_bam_conversion_and_sorting(local_sam):
     assert os.path.isfile(bam_file + ".bai")
 
 
-# def test_run_count_job_bedtools_local(local_bam):
-#     bam, gff, today, config_dict, local = local_bam
-#     count_file = workflow.run_count_job_bedtools(gff, bam, config_dict, today, local)[0]
-#     assert os.path.isfile(count_file)
-#     assert os.path.getsize(count_file) != 0
+def test_run_count_job_bedtools_local(local_bam):  # P
+    bam, gff, today, config_dict, local = local_bam
+    count_file = workflow.run_count_job_bedtools(gff, bam, config_dict, local)[0]
+    assert os.path.isfile(count_file)
+    assert os.path.getsize(count_file) != 0
 
 
 ###>>>>>>>

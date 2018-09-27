@@ -58,6 +58,6 @@ def count_with_bedtools(gff, bam, param_dict):
 
 if __name__ == "__main__":
     args = get_args().parse_args()
-    param_dict = helpers.process_config(args.config)
+    param_dict = helpers.process_config(args.config)["bedtools"]
     helpers.process_bedtools_count_output(args.input, args.output, param_dict)
 

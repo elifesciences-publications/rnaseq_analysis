@@ -158,7 +158,7 @@ def run_alignment_job(fastq_file, index_path, config_dict, local, job_depend='')
         return sam_file, jobid
 
 
-def run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today, local, job_dependency=''):
+def run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, local, job_dependency=''):
     param_dict = config_dict["Samtools"]
     out_dir = os.path.dirname(sam_file)
     suffix = sam_file.split(".")[0]
@@ -179,7 +179,7 @@ def run_bam_stats(bam_file):
     return total, mapped, pnt_mapped
 
 
-def run_count_job_bedtools(gff, bam, config_dict, today, local, job_dependency=""):
+def run_count_job_bedtools(gff, bam, config_dict, local, job_dependency=""):
     param_dict = config_dict["bedtools"]
     output_directory = os.path.dirname(bam)
     prefix = os.path.basename(bam).split(".")[0]
@@ -199,7 +199,7 @@ def run_count_job_bedtools(gff, bam, config_dict, today, local, job_dependency="
         return count_file, jobid
 
 
-def run_edit_count_job_bedtools(count_file, config_dict, today, local, job_dependency=""):
+def run_edit_count_job_bedtools(count_file, config_dict, local, job_dependency=""):
     param_dict = config_dict["bedtools"]
     count_file_edited = count_file.split(".csv")[0] + "_edited.csv"
     out_dir = os.path.dirname(count_file)
@@ -210,16 +210,23 @@ def run_edit_count_job_bedtools(count_file, config_dict, today, local, job_depen
     else:
         # todo make this less hacky
         # todo test
-        config_file = "/Users/annasintsova/git_repos/code/local_config"
+        config_file = "./config"
         script = "python modules/counts.py {} {} {}".format(count_file, count_file_edited, config_file)
         jobid = submit_flux_job(out_dir, prefix, "count_edit", script, job_dependency)
         return count_file_edited, jobid
 
 
 
-def run_count_job_htseq_count(gff, bam, config_dict, today, local, job_dependency=""):
+def run_count_job_htseq_count(gff, bam, config_dict, local, job_dependency=""):
     param_dict = config_dict["HTSeq"]
-    script = counts.count_reads(bam, gff, param_dict)
+    if not local:
+        out_dir = os.path.dirname(bam)
+        sample_id = os.path.basename(bam).split(".")[0]
+        script = counts.count_reads(bam, gff, param_dict)
+        jobid = submit_flux_job(out_dir, sample_id, "Count", script, job_dependency)
+        return "", jobid
+    else:
+        return "Not available locally", ""
 
 
 def clean_up_after_run(fastq_dir, out_dir):
@@ -254,7 +261,7 @@ def workflow_qc(fastq_dir, config_dict, local=False):
 
 
 def workflow_mqc(fastqc_dir, config_dict, local):
-    run_multiqc_job(fastqc_dir, config_dict, local)
+    run_multiqc_job(fastqc_dir, config_dict, local)  # todo combine with -trim workflow
     return "Multiqc jobs submitted!"
 
 # todo make sure can handle .gz files
@@ -276,7 +283,7 @@ def workflow_align(fastq_dir, ref, gff, config_dict, today, local):
     if local:
         # 1. Build index
         print("Building index...")
-        bt2, _ = run_build_index_job(ref, today, config_dict, local)
+        bt2, _ = run_build_index_job(ref, config_dict, local)
         print("Index complete, index name: {}".format(bt2))
         # 2. Find fastq files
         print("Looking for fastq files")
@@ -285,33 +292,31 @@ def workflow_align(fastq_dir, ref, gff, config_dict, today, local):
         # 3. Iterate over them and align
         for file in fastq_files:
             print("Aligning {}".format(file))
-            sam_file, _ = run_alignment_job(file, bt2, config_dict, today, local)
+            sam_file, _ = run_alignment_job(file, bt2, config_dict, local)
             print("Sorting {}".format(sam_file))
-            sorted_bam, _ = run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, today, local)
+            sorted_bam, _ = run_sam_to_bam_conversion_and_sorting(sam_file, config_dict, local)
             print("Counting {}".format(sorted_bam))
-            counts_file, _ = run_count_job_bedtools(gff, sorted_bam, config_dict, today, local)
+            counts_file, _ = run_count_job_bedtools(gff, sorted_bam, config_dict, local)
             print("Counting complete, count file: {}".format(counts_file))
             print("Editing count file")
             run_edit_count_job_bedtools(counts_file, config_dict, today, local)
-
+        return []
     else:
         job_ids = {}
         # 1. Build index
-        bt2, index_jobid = run_build_index_job(ref, today, config_dict, local)
+        bt2, index_jobid = run_build_index_job(ref, config_dict, local)
         # 2. Find fastq files
         fastq_files = helpers.find_files_in_a_tree(fastq_dir, file_type='fastq')
         # 3. Iterate over them and align
         for file in fastq_files:
             sam_file, samfile_jobid = run_alignment_job(file, bt2, config_dict,
-                                                        today, local, index_jobid)
+                                                        local, index_jobid)
             sorted_bam, sam2bam_jobid = run_sam_to_bam_conversion_and_sorting(sam_file, config_dict,
-                                                                              today, local,
-                                                                              samfile_jobid)
-            counts_file, counts_jobid = run_count_job_bedtools(gff, sorted_bam, config_dict, today,
+                                                                              local, samfile_jobid)
+            counts_file, counts_jobid = run_count_job_bedtools(gff, sorted_bam, config_dict,
                                                                local, sam2bam_jobid)
-            count_file_edited, ce_jobid = run_edit_count_job_bedtools(counts_file, config_dict, today,
-                                                                      local, job_dependency=counts_jobid)
-
+            count_file_edited, ce_jobid = run_edit_count_job_bedtools(counts_file, config_dict,
+                                                                      local, counts_jobid)
             job_ids[file] = [samfile_jobid, sam2bam_jobid, counts_jobid, ce_jobid]
         return job_ids
 

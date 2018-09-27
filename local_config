@@ -37,7 +37,6 @@ method = bedtools
 #other option is htseq
 
 [bedtools]
-
 bin = bedtools
 # -s if stranded, otherwise empty
 strand =
